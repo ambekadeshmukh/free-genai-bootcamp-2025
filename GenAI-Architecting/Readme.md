@@ -16,6 +16,7 @@ Think of this as a smart language learning assistant that helps both teachers an
   - Everything runs through a friendly web portal
 
 2. **Learning Activities**
+
   You can:
   - Practice writing in new languages
   - Go on interactive text adventures
@@ -89,7 +90,7 @@ Students enjoy:
 - Cost-effective
 
 ## Future-Ready 🚀
-It currently supports only one language - Tamil
+It currently supports only one language
 
 - Can add new languages easily
 - Updates with new AI models
