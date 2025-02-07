@@ -1,6 +1,7 @@
-# free-genai-bootcamp-2025
 
-# Free GenAI Bootcamp 2025 - Project: Language Learning Platform
+
+# Free GenAI Bootcamp 2025 
+# Project: Language Learning Platform
 
 ## 👋 Introduction
 
