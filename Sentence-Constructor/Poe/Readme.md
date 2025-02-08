@@ -1,12 +1,17 @@
 # Poe Assistant Guide
 
-## Model used:
-Claude Sonnet 3.5 (2025 Q1)
+Poe.com is a platform developed by Quora that allows users to chat with various AI models, including OpenAI's ChatGPT, Anthropic's Claude, and other AI models. It provides a single interface where users can interact with different AI assistants, compare their responses, and explore different conversational AI capabilities.
 
-I have the paid version of Claude Sonnet, and we're going to use projects.
+Poe (short for "Platform for Open Exploration") also enables users to create their own AI bots using prompts and APIs, making it a useful tool for experimenting with AI applications.
 
-Prompting Guides
+https://poe.com/
 
-https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/use-xml-tags
+## Models used:
 
-Anthropic have very specific suggestions for providing good prompting.
+I tried the below models 
+
+- Grok model, created by xAI
+- Mistral AI's medium-sized model
+- Deepseek-v3-T
+- Llama-3.1-405B-T
+
