@@ -1,4 +1,4 @@
-# Claude Assistant Guide
+# Gemini AI Assistant Guide
 
 ## Model used:
 Claude Sonnet 3.5 (2025 Q1)
