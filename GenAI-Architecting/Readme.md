@@ -2,7 +2,7 @@
 
 An intuitive language learning system that combines artificial intelligence with traditional teaching methods.
 
-![alt text](GenAi-Architecture.png)
+![alt text](GenAI-Architecture.png)
 
 ## What Does This System Do? 🤔
 
