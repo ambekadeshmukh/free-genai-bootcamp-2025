@@ -1,73 +1,188 @@
-Backend Server Technical Specifications
-Business Goal
-A French language learning portal that serves as:
+# French Learning Portal - Technical Specifications
 
-A comprehensive French vocabulary inventory system
-A learning record store (LRS) tracking student performance
-A unified platform to launch various French learning activities
+## Overview
+A language learning portal designed to help users learn French vocabulary through various interactive activities. The system serves as both a vocabulary inventory and a learning progress tracker.
 
-Technical Requirements
+## System Architecture
 
-Backend Framework: Python FastAPI (chosen for its modern async support, automatic OpenAPI docs, and type safety)
-Database: SQLite3
-Architecture: RESTful API
-Response Format: JSON
-Authentication: None (single user system)
-Deployment: Docker container (optional, for easier deployment)
+### Backend Stack
+- **Framework**: Flask (Python)
+- **Database**: SQLite3
+- **ORM**: SQLAlchemy
+- **API Style**: RESTful
+- **Testing**: pytest
+- **Documentation**: OpenAPI/Swagger
 
-### Database Schema
+### Key Components
+1. **Core Application Server**
+   - Flask application server
+   - RESTful API endpoints
+   - SQLAlchemy ORM integration
+   - CORS support
 
-SQLite Features Used:
+2. **Database Layer**
+   - SQLite3 database
+   - Migration system
+   - Seed data management
+   - Automatic timestamps
+   - Foreign key constraints
 
-Foreign Key constraints for referential integrity
-JSON column type for flexible word parts storage
-Automatic timestamp handling
-Boolean type for correct/incorrect tracking
-Cascade deletes to maintain data consistency
+3. **Business Logic Layer**
+   - Word management
+   - Study session tracking
+   - Progress analytics
+   - Performance metrics
 
+## Database Schema
 
-Table Relationships:
+### Tables
+1. **words**
+   - Primary key: id (INTEGER)
+   - french (TEXT)
+   - phonetic (TEXT)
+   - english (TEXT)
+   - parts (JSON)
+   - created_at (TIMESTAMP)
 
-Many-to-many relationship between words and groups through word_groups
-One-to-many relationship between groups and study_sessions
-One-to-many relationship between study_activities and study_sessions
-One-to-many relationship between study_sessions and word_review_items
+2. **groups**
+   - Primary key: id (INTEGER)
+   - name (TEXT)
+   - description (TEXT)
+   - words_count (INTEGER)
+   - created_at (TIMESTAMP)
 
+3. **word_groups**
+   - Composite key: (word_id, group_id)
+   - word_id (INTEGER, FK)
+   - group_id (INTEGER, FK)
+   - created_at (TIMESTAMP)
 
-Performance Considerations:
+4. **study_activities**
+   - Primary key: id (INTEGER)
+   - name (TEXT)
+   - url (TEXT)
+   - description (TEXT)
+   - created_at (TIMESTAMP)
 
-Counter cache on groups.words_count for efficient word counting
-Indexes automatically created on primary and foreign keys
-All necessary columns marked as nullable=False for data integrity
+5. **study_sessions**
+   - Primary key: id (INTEGER)
+   - group_id (INTEGER, FK)
+   - study_activity_id (INTEGER, FK)
+   - created_at (TIMESTAMP)
 
-### API Endpoints
+6. **word_review_items**
+   - Primary key: id (INTEGER)
+   - word_id (INTEGER, FK)
+   - study_session_id (INTEGER, FK)
+   - correct (BOOLEAN)
+   - created_at (TIMESTAMP)
 
+### Relationships
+- words ⟷ groups (Many-to-Many through word_groups)
+- study_sessions → groups (Many-to-One)
+- study_sessions → study_activities (Many-to-One)
+- word_review_items → words (Many-to-One)
+- word_review_items → study_sessions (Many-to-One)
 
-### Key Features
+## Performance Considerations
 
-Word Management
+### Database Optimizations
+1. **Indexes**
+   - words(french, english)
+   - groups(name)
+   - study_sessions(created_at)
+   - word_review_items(word_id, study_session_id)
 
-CRUD operations for French vocabulary
-Support for word components (gender, type, conjugation)
-Search and filter capabilities
+2. **Counter Cache**
+   - groups.words_count maintains count of words
 
+3. **Pagination**
+   - All list endpoints support pagination
+   - Default page size: 50 items
+   - Maximum page size: 100 items
 
-Group Organization
+## Security Considerations
 
-Thematic grouping of words
-Group-based learning progress tracking
-Words can belong to multiple groups
+### Data Protection
+- Input validation using Pydantic models
+- SQL injection prevention through ORM
+- XSS prevention through content-type headers
+- CORS configuration for frontend integration
 
+### Error Handling
+- Consistent error response format
+- Appropriate HTTP status codes
+- Detailed error messages in development
+- Sanitized error messages in production
 
-Study Sessions
+## Development Setup
 
-Track learning progress
-Record correct/incorrect attempts
-Generate performance statistics
+### Requirements
+- Python 3.8+
+- pip
+- virtualenv (recommended)
 
+### Installation Steps
+```bash
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # or `venv\Scripts\activate` on Windows
 
-Learning Activities
+# Install dependencies
+pip install -r requirements.txt
 
-Multiple activity types support
-Activity progress tracking
-Performance analytics
+# Initialize database
+python migrate.py
+
+# Run tests
+pytest
+
+# Start server
+flask run
+```
+
+## Testing Strategy
+
+### Unit Tests
+- Route handlers
+- Database models
+- Business logic
+- Utility functions
+
+### Integration Tests
+- API endpoints
+- Database operations
+- Error handling
+- Data validation
+
+### Test Coverage Goals
+- Minimum 80% code coverage
+- Critical paths: 100% coverage
+- Error conditions: 90% coverage
+
+## Deployment
+
+### Development
+- Local SQLite database
+- Debug mode enabled
+- Detailed error messages
+- Auto-reload enabled
+
+### Production
+- Connection pooling
+- Error logging
+- Performance monitoring
+- Regular backups
+
+## Monitoring and Maintenance
+
+### Health Checks
+- Database connectivity
+- API response times
+- Error rates
+- Resource usage
+
+### Backup Strategy
+- Daily database backups
+- Version control for code
+- Migration version tracking
