@@ -1,9 +1,13 @@
-CREATE TABLE word_review_items (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  word_id INTEGER NOT NULL,
-  study_session_id INTEGER NOT NULL,  -- Link to study session
-  result BOOLEAN NOT NULL,  -- Whether the answer was correct (true) or wrong (false)
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,  -- Timestamp of the review
-  FOREIGN KEY (word_id) REFERENCES words(id),
-  FOREIGN KEY (study_session_id) REFERENCES study_sessions(id)
-);
+-- create_word_reviews.sql
+CREATE VIEW IF NOT EXISTS word_review_stats AS
+SELECT 
+    w.id as word_id,
+    w.french,
+    w.english,
+    COUNT(wri.id) as total_reviews,
+    SUM(CASE WHEN wri.correct THEN 1 ELSE 0 END) as correct_count,
+    SUM(CASE WHEN NOT wri.correct THEN 1 ELSE 0 END) as wrong_count,
+    MAX(wri.created_at) as last_reviewed_at
+FROM words w
+LEFT JOIN word_review_items wri ON w.id = wri.word_id
+GROUP BY w.id, w.french, w.english;
