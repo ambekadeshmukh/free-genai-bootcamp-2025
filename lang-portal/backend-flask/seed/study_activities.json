@@ -1,3 +1,32 @@
 [
   {"name": "Typing Tutor", "url": "http://localhost:8080", "preview_url": "/assets/study_activities/typing-tutor.png"}
 ]
+{
+  "study_activities": [
+    {
+      "name": "Flashcards",
+      "url": "/activities/flashcards",
+      "description": "Practice vocabulary with digital flashcards"
+    },
+    {
+      "name": "Multiple Choice Quiz",
+      "url": "/activities/quiz",
+      "description": "Test your knowledge with multiple choice questions"
+    },
+    {
+      "name": "Writing Practice",
+      "url": "/activities/writing",
+      "description": "Practice writing French words and sentences"
+    },
+    {
+      "name": "Listening Exercise",
+      "url": "/activities/listening",
+      "description": "Improve your pronunciation and listening skills"
+    },
+    {
+      "name": "Word Match",
+      "url": "/activities/matching",
+      "description": "Match French words with their English translations"
+    }
+  ]
+}

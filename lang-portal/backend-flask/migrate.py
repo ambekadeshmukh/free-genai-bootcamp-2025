@@ -1,31 +1,71 @@
-import sqlite3
 import os
+import json
+from lib.db import init_db, db_session
+from models import Word, Group, StudyActivity, WordGroup
 
-def run_migrations():
-    # Connect to the database
-    db_path = os.path.join(os.path.dirname(__file__), 'word_bank.db')
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
+def load_seed_data():
+    """Load seed data from JSON files"""
+    # Load words
+    with open('seed/data_verbs.json', 'r', encoding='utf-8') as f:
+        verbs_data = json.load(f)
+        for verb in verbs_data['verbs']:
+            word = Word(
+                french=verb['french'],
+                phonetic=verb['phonetic'],
+                english=verb['english'],
+                parts=verb['parts']
+            )
+            db_session.add(word)
     
-    try:
-        # Get list of migration files
-        migrations_dir = os.path.join(os.path.dirname(__file__), 'sql', 'migrations')
-        migration_files = sorted([f for f in os.listdir(migrations_dir) if f.endswith('.sql')])
-        
-        # Run each migration
-        for migration_file in migration_files:
-            print(f"Running migration: {migration_file}")
-            with open(os.path.join(migrations_dir, migration_file)) as f:
-                migration_sql = f.read()
-                conn.executescript(migration_sql)
-                conn.commit()
-        
-        print("Migrations completed successfully")
-    except Exception as e:
-        print(f"Error running migrations: {str(e)}")
-        conn.rollback()
-    finally:
-        conn.close()
+    with open('seed/data_nouns.json', 'r', encoding='utf-8') as f:
+        nouns_data = json.load(f)
+        for noun in nouns_data['nouns']:
+            word = Word(
+                french=noun['french'],
+                phonetic=noun['phonetic'],
+                english=noun['english'],
+                parts=noun['parts']
+            )
+            db_session.add(word)
+
+    # Load study activities
+    with open('seed/study_activities.json', 'r', encoding='utf-8') as f:
+        activities_data = json.load(f)
+        for activity in activities_data['study_activities']:
+            study_activity = StudyActivity(
+                name=activity['name'],
+                url=activity['url'],
+                description=activity['description']
+            )
+            db_session.add(study_activity)
+
+    # Create default groups
+    default_groups = [
+        {'name': 'Common Verbs', 'description': 'Most frequently used French verbs'},
+        {'name': 'Basic Nouns', 'description': 'Essential everyday nouns'},
+        {'name': 'Greetings', 'description': 'Common greetings and pleasantries'},
+        {'name': 'Numbers', 'description': 'Numbers and counting in French'},
+        {'name': 'Colors', 'description': 'Color vocabulary'}
+    ]
+
+    for group_data in default_groups:
+        group = Group(
+            name=group_data['name'],
+            description=group_data['description']
+        )
+        db_session.add(group)
+
+    db_session.commit()
+
+def migrate():
+    """Run database migrations"""
+    print("Initializing database...")
+    init_db()
+    
+    print("Loading seed data...")
+    load_seed_data()
+    
+    print("Migration completed successfully!")
 
 if __name__ == '__main__':
-    run_migrations()
+    migrate()

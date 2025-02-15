@@ -1,0 +1,37 @@
+{
+    "nouns": [
+      {
+        "french": "la maison",
+        "phonetic": "mɛzɔ̃",
+        "english": "house",
+        "parts": {
+          "type": "noun",
+          "gender": "feminine",
+          "category": "housing",
+          "plural": "les maisons"
+        }
+      },
+      {
+        "french": "le chat",
+        "phonetic": "ʃa",
+        "english": "cat",
+        "parts": {
+          "type": "noun",
+          "gender": "masculine",
+          "category": "animals",
+          "plural": "les chats"
+        }
+      },
+      {
+        "french": "la table",
+        "phonetic": "tabl",
+        "english": "table",
+        "parts": {
+          "type": "noun",
+          "gender": "feminine",
+          "category": "furniture",
+          "plural": "les tables"
+        }
+      }
+    ]
+  }
