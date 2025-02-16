@@ -49,18 +49,19 @@ I'll be implementing a system with these main components:
 ## 📝 Weekly Learning Goals
 
 1. **Pre-Week 1**: Understanding and designing the architecture and setting up the first project module - Sentence Constructor
-2. **Week 1**: 
-3. **Week 3**: 
-4. **Week 4**: 
-5. **Week 5**: 
-6. **Week 6**: 
+2. **Week 1**: Dev and Dev Tools - Built the backend and frontend of the language portal
+3. **Week 2**: Multi Modalities
+4. **Week 3**: 
+5. **Week 4**: 
+6. **Week 5**:
+7. **Week 6**: 
 
 ## 🛠️ Technologies I'll Be Using
 
 - AI/ML: GPT-4, Claude, and open-source LLMs
 - Backend: Python
 - Frontend: React
-- Database: PostgreSQL
+- Database: Sqlite
 - Caching: Redis
 - Vector Search for efficient content retrieval
 
