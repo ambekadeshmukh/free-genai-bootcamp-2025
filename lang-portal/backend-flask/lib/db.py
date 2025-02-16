@@ -3,8 +3,8 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 import os
 
-database_url = os.getenv('DATABASE_URL', 'sqlite:///french_learning.db')
-engine = create_engine(database_url, convert_unicode=True)
+database_url = os.getenv('DATABASE_URL', 'sqlite:///french_portal.db')
+engine = create_engine(database_url)
 db_session = scoped_session(sessionmaker(autocommit=False,
                                        autoflush=False,
                                        bind=engine))

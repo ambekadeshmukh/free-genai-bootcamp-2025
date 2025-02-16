@@ -1,6 +1,43 @@
-from flask import jsonify, request
+from flask import Blueprint, jsonify, request
 from flask_cors import cross_origin
 import math
+from lib.db import db_session
+from models import StudyActivity
+
+bp = Blueprint('study_activities', __name__, url_prefix='/api/study-activities')
+
+@bp.route('/', methods=['GET'])
+def get_activities():
+    activities = StudyActivity.query.all()
+    return jsonify([{
+        'id': activity.id,
+        'name': activity.name,
+        'description': activity.description
+    } for activity in activities])
+
+@bp.route('/<int:id>', methods=['GET'])
+def get_activity(id):
+    activity = StudyActivity.query.get_or_404(id)
+    return jsonify({
+        'id': activity.id,
+        'name': activity.name,
+        'description': activity.description
+    })
+
+@bp.route('/', methods=['POST'])
+def create_activity():
+    data = request.get_json()
+    activity = StudyActivity(
+        name=data['name'],
+        description=data.get('description', '')
+    )
+    db_session.add(activity)
+    db_session.commit()
+    return jsonify({
+        'id': activity.id,
+        'name': activity.name,
+        'description': activity.description
+    }), 201
 
 def load(app):
     @app.route('/api/study-activities', methods=['GET'])

@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify
 from lib.db import db_session
-from models import StudySession, WordReviewItem, Group
+from models import StudySession, WordReviewItem, Group, Word
 from sqlalchemy import func, desc
 from datetime import datetime, timedelta
 

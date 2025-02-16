@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, jsonify
 from flask_cors import CORS
 from lib.db import db_session, init_db
 from routes import dashboard, groups, study_activities, study_sessions, words
@@ -22,3 +22,15 @@ def init_db_command():
     """Initialize the database."""
     init_db()
     print("Initialized the database.")
+
+@app.route('/')
+def home():
+    return jsonify({
+        'status': 'ok',
+        'available_endpoints': [
+            '/api/study-activities',
+            '/api/groups',
+            '/api/study-sessions',
+            '/api/words'
+        ]
+    })

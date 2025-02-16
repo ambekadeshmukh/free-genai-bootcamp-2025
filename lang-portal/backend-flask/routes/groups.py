@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from lib.db import db_session
-from models import Group, Word, WordGroup
+from models import Group, Word
 from sqlalchemy import desc
 
 bp = Blueprint('groups', __name__, url_prefix='/api/groups')
