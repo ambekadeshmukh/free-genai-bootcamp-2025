@@ -1,0 +1,9 @@
+torch
+diffusers
+transformers
+fastapi
+uvicorn
+safetensors
+accelerate
+requests
+pillow

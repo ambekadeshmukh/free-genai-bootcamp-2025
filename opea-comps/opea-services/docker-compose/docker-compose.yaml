@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  text2image:
+    build:
+      context: ../text2image
+      dockerfile: Dockerfile
+    ports:
+      - "9379:9379"
+    environment:
+      - MODEL=stabilityai/stable-diffusion-2-1
+      - HF_TOKEN=${HF_TOKEN}
+    networks:
+      - opea-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9379/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    volumes:
+      - text2image_cache:/root/.cache
+
+  image2video:
+    build:
+      context: ../image2video
+      dockerfile: Dockerfile
+    ports:
+      - "9369:9369"
+    environment:
+      - HF_TOKEN=${HF_TOKEN}
+    networks:
+      - opea-network
+    depends_on:
+      - text2image
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9369/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    volumes:
+      - image2video_cache:/root/.cache
+
+networks:
+  opea-network:
+    driver: bridge
+
+volumes:
+  text2image_cache:
+  image2video_cache:
