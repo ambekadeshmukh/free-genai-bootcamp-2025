@@ -1,5 +1,5 @@
 # OPEA Microservices Implementation
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
+
 ![Python](https://img.shields.io/badge/python-3.9+-blue.svg)
 ![Docker](https://img.shields.io/badge/docker-required-blue.svg)
 ![FastAPI](https://img.shields.io/badge/fastapi-latest-blue.svg)

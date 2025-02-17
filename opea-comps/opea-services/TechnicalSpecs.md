@@ -9,16 +9,8 @@ The system consists of two main microservices:
 
 Both services are containerized and orchestrated using Docker Compose.
 
-```mermaid
-graph TD
-    A[Client] --> B[Docker Network]
-    B --> C[Text-to-Image Service]
-    B --> D[Image-to-Video Service]
-    C --> E[HuggingFace API]
-    D --> E
-    C --> F[Local Cache Volume]
-    D --> G[Local Cache Volume]
-```
+![alt text](OPEA.png)
+
 
 ## Service Specifications
 
