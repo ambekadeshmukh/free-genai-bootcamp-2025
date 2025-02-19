@@ -16,21 +16,6 @@ A Streamlit application that generates vocabulary lists for language learning us
 - Export vocabulary lists as JSON
 - Clean and intuitive user interface
 
-### How to run it on your own machine
-
-1. Install the requirements
-
-   ```
-   $ pip install -r requirements.txt
-   ```
-
-2. Run the app
-
-   ```
-   $ streamlit run streamlit_app.py
-   ```
-
-
 ## 🎯 Business Goal
 
 This tool addresses the need to efficiently populate our language learning application with vocabulary content. Instead of manual entry, it provides:
@@ -60,14 +45,16 @@ This tool addresses the need to efficiently populate our language learning appli
 
 1. Clone the repository
 ```bash
-git clone https://github.com/yourusername/french-vocab-generator.git
-cd french-vocab-generator
+git clone https://github.com/yourusername/free-genai-bootcamp-2025/lang-portal/
+cd vocab-importer
 ```
 
 2. Set up virtual environment
 ```bash
 python -m venv venv
-source venv/bin/activate  # For Windows: venv\Scripts\activate
+source venv/bin/activate
+
+# For Windows: venv\Scripts\activate
 ```
 
 3. Install dependencies
@@ -154,6 +141,9 @@ Run the test suite:
 pytest src/tests/
 ```
 
+## The Output
+
+![vocab-importer](https://github.com/user-attachments/assets/422216fe-1d1a-4643-98ca-386a2c684a4e)
 
 
 ## 🔍 Troubleshooting
