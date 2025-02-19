@@ -35,6 +35,11 @@ def generate_vocab_ui(llm_client: GroqClient):
     col1, col2 = st.columns([2, 1])
     
     with col1:
+        language = st.selectbox(
+            "Select target language",
+            ["French", "Spanish", "German", "Italian"],
+            index=0
+        )
         theme = st.text_input(
             "Enter thematic category",
             placeholder="e.g., food, travel, weather"
@@ -43,11 +48,11 @@ def generate_vocab_ui(llm_client: GroqClient):
         
         if st.button("Generate Vocabulary", type="primary"):
             if theme:
-                with st.spinner("Generating vocabulary..."):
+                with st.spinner(f"Generating {language} vocabulary..."):
                     try:
-                        vocab_data = llm_client.generate_vocabulary(theme, num_words)
+                        vocab_data = llm_client.generate_vocabulary(theme, num_words, language.lower())
                         st.session_state.generated_vocab = vocab_data
-                        display_vocab_results(vocab_data)
+                        display_vocab_results(vocab_data, language)
                     except Exception as e:
                         st.error(f"Error generating vocabulary: {str(e)}")
             else:
@@ -95,7 +100,7 @@ def import_export_ui():
         except Exception as e:
             st.error(f"Error processing file: {str(e)}")
 
-def display_vocab_results(vocab_data: List[Dict]):
+def display_vocab_results(vocab_data: List[Dict], language: str = "French"):
     """Display vocabulary results in a formatted way"""
     st.subheader("Generated Vocabulary")
     
@@ -106,21 +111,35 @@ def display_vocab_results(vocab_data: List[Dict]):
     flattened_data = []
     for item in vocab_data:
         flat_item = {
-            "French": item["french"],
-            "Pronunciation": item["pronunciation"],
-            "English": item["english"],
-            "Type": item["parts"][0].get("type", ""),
-            "Gender": item["parts"][0].get("gender", ""),
-            "Conjugation": item["parts"][0].get("conjugation", "")
+            language: item.get(language.lower(), ""),
+            "Pronunciation": item.get("pronunciation", ""),
+            "English": item.get("english", ""),
+            "Type": item.get("type", ""),
+            "Gender": item.get("gender", ""),
+            "Notes": item.get("notes", "")
         }
         flattened_data.append(flat_item)
     
     df = pd.DataFrame(flattened_data)
-    st.dataframe(df, use_container_width=True)
+    
+    # Apply styling to the dataframe
+    st.dataframe(
+        df,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            language: st.column_config.Column(width="medium"),
+            "English": st.column_config.Column(width="medium"),
+            "Pronunciation": st.column_config.Column(width="medium"),
+            "Type": st.column_config.Column(width="small"),
+            "Gender": st.column_config.Column(width="small"),
+            "Notes": st.column_config.Column(width="large")
+        }
+    )
     
     # Show raw JSON with copy button
-    st.subheader("Raw JSON")
-    st.json(vocab_data)
+    with st.expander("Show Raw JSON"):
+        st.json(vocab_data)
 
 if __name__ == "__main__":
     main()
