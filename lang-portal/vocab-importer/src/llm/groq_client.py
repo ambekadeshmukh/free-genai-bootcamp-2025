@@ -11,37 +11,37 @@ class GroqClient:
         )
         self.model = "mixtral-8x7b-32768"
 
-    def generate_vocabulary(self, theme: str, num_words: int = 10) -> List[Dict]:
+    def generate_vocabulary(self, theme: str, num_words: int) -> List[Dict]:
         """
-        Generate vocabulary based on the given theme
-        
-        Args:
-            theme: The thematic category for vocabulary generation
-            num_words: Number of words to generate
-            
-        Returns:
-            List of vocabulary items with their details
+        Generate vocabulary based on theme using Groq LLM
         """
-        prompt = VOCAB_GENERATION_PROMPT.format(
-            theme=theme,
-            num_words=num_words
-        )
+        prompt = f"""Generate {num_words} vocabulary words related to {theme} in the following JSON format:
+        [{{
+            "french": "word in French",
+            "english": "English translation",
+            "pronunciation": "IPA pronunciation",
+            "parts": [{{
+                "type": "part of speech",
+                "gender": "grammatical gender if applicable"
+            }}]
+        }}]
+        """
         
         try:
             completion = self.client.chat.completions.create(
                 messages=[{"role": "user", "content": prompt}],
-                model=self.model,
-                temperature=0.7,
+                model="mixtral-8x7b-32768",
+                temperature=0.3,
+                max_tokens=1000
             )
             
             # Extract and parse the JSON response
-            response_content = completion.choices[0].message.content
-            vocab_data = json.loads(response_content)
-            
+            response_text = completion.choices[0].message.content
+            vocab_data = json.loads(response_text)
             return vocab_data
             
         except Exception as e:
-            raise Exception(f"Error generating vocabulary: {str(e)}")
+            raise Exception(f"Failed to generate vocabulary: {str(e)}")
 
     def validate_response(self, vocab_data: List[Dict]) -> bool:
         """

@@ -1,8 +1,20 @@
-# 🎈 Blank app template
+# 🎈 French Language Vocabulary Generator
 
-A simple Streamlit app template for you to modify!
+A Streamlit application that generates vocabulary lists for language learning using Groq LLM.
 
-[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://blank-app-template.streamlit.app/)
+## Features
+
+- Generate vocabulary lists for multiple languages (French, Spanish, German, Italian)
+- Customizable number of words (5-20 words)
+- Thematic category-based generation
+- Includes:
+  - Word in target language
+  - English translation
+  - IPA pronunciation
+  - Part of speech
+  - Grammatical gender (where applicable)
+- Export vocabulary lists as JSON
+- Clean and intuitive user interface
 
 ### How to run it on your own machine
 
@@ -17,9 +29,7 @@ A simple Streamlit app template for you to modify!
    ```
    $ streamlit run streamlit_app.py
    ```
-# French Language Vocabulary Generator
 
-An internal tool designed to quickly populate a language learning application with French vocabulary and word groups using LLM technology.
 
 ## 🎯 Business Goal
 
