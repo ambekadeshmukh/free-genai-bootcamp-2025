@@ -1,3 +1,0 @@
-chromadb
-streamlit
-boto3
