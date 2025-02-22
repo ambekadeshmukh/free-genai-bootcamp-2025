@@ -35,7 +35,7 @@ export default function Dashboard() {
         <img 
           src="/lovable-uploads/1f0c7e17-ff54-492c-8b63-346f54a741d3.png"
           alt="Apprenons Le Français"
-          className="mx-auto h-54 w-auto"
+          className="mx-auto h-94 w-auto"
         />
         <p className="text-lg text-gray-600 max-w-2xl mx-auto">
           Track your progress, practice vocabulary, and master the French language
