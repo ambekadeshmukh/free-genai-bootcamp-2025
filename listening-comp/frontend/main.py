@@ -9,6 +9,31 @@ from backend.audio_generator import AudioGenerator
 from backend.speech_to_text import SpeechToText
 from backend.get_transcript import YouTubeTranscriptDownloader
 
+# Configure Streamlit page
+st.set_page_config(
+    page_title="French Learning Assistant",
+    page_icon="🇫🇷",
+    layout="wide",
+    initial_sidebar_state="expanded",
+    menu_items={
+        'Get Help': None,
+        'Report a bug': None,
+        'About': None
+    }
+)
+
+# Hide debug info and streamlit marks
+st.markdown("""
+    <style>
+        #MainMenu {visibility: hidden;}
+        footer {visibility: hidden;}
+        .stDeployButton {display:none;}
+        .css-1dp5vir {display:none;}
+        .css-18e3th9 {padding-top: 0;}
+        div[data-testid="stToolbar"] {display: none;}
+    </style>
+""", unsafe_allow_html=True)
+
 # Add project root to Python path
 project_root = str(Path(__file__).parent.parent)
 sys.path.append(project_root)
@@ -27,6 +52,9 @@ if 'messages' not in st.session_state:
 if 'audio_paths' not in st.session_state:
     st.session_state.audio_paths = {}
 
+# Initialize audio generator
+audio_gen = AudioGenerator()
+
 def initialize_components():
     """Initialize backend components"""
     if 'audio_gen' not in st.session_state:
@@ -38,7 +66,7 @@ def initialize_components():
 
 def render_header():
     """Render the header section"""
-    st.title("🇫🇷 French Learning Assistant")
+    st.title("French Learning Assistant")
     st.markdown("""
     Transform YouTube transcripts into interactive French learning experiences.
     Practice listening, speaking, and comprehension with AI assistance.
@@ -52,29 +80,21 @@ def render_audio_practice():
     
     with col1:
         # Text input for pronunciation
-        text_to_speak = st.text_area(
+        french_text = st.text_area(
             "Enter French text to practice:",
-            value="Bonjour, comment allez-vous?"
+            key='french_text',
+            height=100
         )
         
         # Voice selection
-        voice_type = st.radio(
+        gender = st.radio(
             "Select voice:",
-            ["female", "male"],
-            horizontal=True
+            options=['female', 'male'],
+            key='voice_gender'
         )
         
         if st.button("Generate Audio"):
-            with st.spinner("Generating audio..."):
-                try:
-                    audio_path = st.session_state.audio_gen.generate_audio(
-                        text_to_speak,
-                        voice_type=voice_type
-                    )
-                    st.session_state.audio_paths['practice'] = audio_path
-                    st.success("Audio generated!")
-                except Exception as e:
-                    st.error(f"Error generating audio: {str(e)}")
+            generate_audio_button()
     
     with col2:
         # Play generated audio
@@ -194,6 +214,19 @@ def render_transcript_practice():
                 if f'transcript_{i}' in st.session_state.audio_paths:
                     st.audio(st.session_state.audio_paths[f'transcript_{i}'])
 
+def generate_audio_button():
+    text = st.session_state.get('french_text', '')
+    gender = st.session_state.get('voice_gender', 'female')
+    
+    if text:
+        try:
+            audio_bytes = audio_gen.generate_audio(text, gender)
+            st.audio(audio_bytes, format='audio/mp3')
+        except Exception as e:
+            st.error(f"Error generating audio: {str(e)}")
+    else:
+        st.warning("Please enter some French text first")
+
 def main():
     # Initialize components
     initialize_components()
@@ -218,13 +251,6 @@ def main():
         render_listening_exercise()
     else:
         render_transcript_practice()
-    
-    # Debug information
-    with st.expander("Debug Information"):
-        st.json({
-            "audio_files": list(st.session_state.audio_paths.keys()),
-            "transcript_loaded": st.session_state.transcript is not None
-        })
 
 if __name__ == "__main__":
     main()

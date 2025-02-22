@@ -1,44 +1,167 @@
-# language-learning-assistant
-This is for the generative AI bootcamp
+# French Language Learning Assistant
 
-**Difficulty:** Level 200 *(Due to RAG implementation and multiple AWS services integration)*
+An advanced learning tool that leverages RAG (Retrieval Augmented Generation) and AWS services to create an interactive French language learning experience. The system demonstrates the progression from basic LLM responses to a fully contextual learning assistant with audio capabilities.A Streamlit-based application for French language learning, featuring pronunciation practice, listening comprehension, and YouTube-based learning.
 
-**Business Goal:**
-A progressive learning tool that demonstrates how RAG and agents can enhance language learning by grounding responses in real Japanese lesson content. The system shows the evolution from basic LLM responses to a fully contextual learning assistant, helping students understand both the technical implementation and practical benefits of RAG.
+## Difficulty Level
+Intermediate - Implements RAG, AWS integrations, and audio processing
 
-**Technical Uncertainty:**
-1. How effectively can we process and structure bilingual (Japanese/English) content for RAG?
-2. What's the optimal way to chunk and embed Japanese language content?
-3. How can we effectively demonstrate the progression from base LLM to RAG to students?
-4. Can we maintain context accuracy when retrieving Japanese language examples?
-5. How do we balance between giving direct answers and providing learning guidance?
-6. What's the most effective way to structure multiple-choice questions from retrieved content?
+## Features
 
-**Technical Restrictions:**
-* Must use Amazon Bedrock for:
-   * API (converse, guardrails, embeddings, agents) (https://boto3.amazonaws.com/v1/documentation/api/latest/index.html)
-     * Aamzon Nova Micro for text generation (https://aws.amazon.com/ai/generative-ai/nova)
-   * Titan for embeddings
-* Must implement in Streamlit, pandas (data visualization)
-* Must use SQLite for vector storage
-* Must handle YouTube transcripts as knowledge source (YouTubeTranscriptApi: https://pypi.org/project/youtube-transcript-api/)
-* Must demonstrate clear progression through stages:
-   * Base LLM
-   * Raw transcript
-   * Structured data
-   * RAG implementation
-   * Interactive features
-* Must maintain clear separation between components for teaching purposes
-* Must include proper error handling for Japanese text processing
-* Must provide clear visualization of RAG process
-* Should work within free tier limits where possible
+### 1. Pronunciation Practice
+- Text-to-speech conversion using Amazon Polly
+- Choice of male/female French voices
+- High-quality audio output
+- Real-time audio generation
 
-This structure:
-1. Sets clear expectations
-2. Highlights key technical challenges
-3. Defines specific constraints
-4. Keeps focus on both learning outcomes and technical implementation
+### 2. Listening Comprehension
+- YouTube video transcript extraction
+- Interactive Q&A generation
+- Vocabulary highlighting
+- Progress tracking
 
-## Knowledgebase
+### 3. Learn from YouTube
+- Direct YouTube video integration
+- Automatic transcript extraction
+- Key phrase identification
+- Translation support
 
-https://github.com/chroma-core/chroma
+## Project Structure
+```
+listening-comp/
+├── backend/
+│   ├── data/
+│   │   ├── questions/         # Stored learning questions
+│   │   └── transcripts/       # Processed transcripts
+│   │   └── __init__.py
+│   │   ├── audio_generator.py    # AWS Polly integration
+│   │   ├── chat.py              # Bedrock chat integration
+│   │   ├── get_transcript.py    # YouTube transcript handling
+│   │   └── interactive.py       # Interactive learning features
+│   │   └── question_generator.py # Question generation
+│   │   └── rag.py              # RAG implementation
+│   │   └── structured_data.py   # Data processing
+│   │   └── vector_store.py      # Vector storage
+│   ├── frontend/
+│   │   ├── static/
+│   │   │   └── audio/           # Generated audio files
+│   │   │   └── __init__.py
+│   │   └── main.py             # Streamlit interface
+│   ├── .gitignore
+│   └── README.md
+```
+
+## Technical Components
+
+### Backend Services
+- **AWS Bedrock**: Text generation and embeddings
+- **AWS Polly**: Text-to-speech for French audio
+- **SQLite**: Vector and content storage
+- **ChromaDB**: Vector search implementation
+
+### Frontend
+- **Streamlit**: User interface
+- **Plotly**: Data visualization
+- **Audio Player**: Custom audio component
+
+### Key Features
+1. **Audio Generation**
+   - Male and female French voices
+   - Dialogue generation
+   - Question and answer audio
+   - Custom pronunciation exercises
+
+2. **Question Generation**
+   - Dialogue-based questions
+   - Grammar exercises
+   - Vocabulary practice
+   - Multi-level difficulty (A1-C1)
+
+3. **RAG Implementation**
+   - Context-aware responses
+   - French language vector embeddings
+   - Efficient similarity search
+
+## Installation
+
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd listening-comp
+```
+
+2. Create virtual environment:
+```bash
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+```
+
+3. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+4. Set up AWS credentials:
+```bash
+export AWS_ACCESS_KEY_ID='your-key'
+export AWS_SECRET_ACCESS_KEY='your-secret'
+export AWS_DEFAULT_REGION='us-east-1'
+```
+
+## Running Tests
+```bash
+# Run all tests
+python -m unittest discover tests
+
+# Run specific test suite
+python -m unittest tests.test_audio
+python -m unittest tests.test_questions
+```
+
+## Usage
+
+1. Start the application:
+```bash
+streamlit run frontend/main.py
+```
+
+2. Navigate through learning stages:
+- Base LLM chat
+- Raw transcript analysis
+- Structured learning
+- RAG-enhanced responses
+- Interactive exercises
+
+3. Select practice mode:
+   - Pronunciation Practice
+   - Listening Comprehension
+   - Learn from YouTube
+
+4. For Pronunciation Practice:
+   - Enter French text
+   - Select voice gender
+   - Generate and play audio
+
+5. For Listening Comprehension:
+   - Enter YouTube URL
+   - Get transcript and questions
+   - Practice with generated content
+
+## Dependencies
+
+Core dependencies from `requirements.txt`:
+- streamlit==1.32.0
+- pandas==2.2.0
+- numpy==1.24.0
+- boto3==1.34.0
+- openai-whisper==20231117
+- ffmpeg-python==0.2.0
+- youtube-transcript-api==0.6.2
+- chromadb==0.4.22
+- plotly==5.18.0
+- python-dotenv==1.0.0
+- requests==2.31.0
+
+## AWS Services Used
+- Amazon Polly for text-to-speech
+- Amazon Bedrock for chat and comprehension
+- AWS SDK (boto3) for AWS integration

@@ -2,51 +2,49 @@ import boto3
 import os
 from pathlib import Path
 from typing import Dict, Optional
+from botocore.exceptions import BotoCoreError, ClientError
 
 class AudioGenerator:
     def __init__(self):
         """Initialize audio generator with Amazon Polly"""
-        self.polly = boto3.client('polly')
-        self.voices = {
-            'male': 'Mathieu',    # French male voice
-            'female': 'Léa'       # French female voice
+        self.client = boto3.client('polly')
+        self.french_voices = {
+            'female': ['Lea', 'Celine'],  # Note: 'Lea' not 'Léa'
+            'male': ['Mathieu']
         }
         self.output_dir = Path('static/audio')
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-    def generate_audio(self, text: str, voice_type: str = 'female') -> str:
+    def generate_audio(self, text: str, gender: str = 'female') -> bytes:
         """
-        Generate audio using Amazon Polly
+        Generate audio from text using Amazon Polly
+        
         Args:
             text: Text to convert to speech
-            voice_type: 'male' or 'female'
+            gender: 'male' or 'female'
+            
         Returns:
-            Path to the generated audio file
+            Audio bytes
         """
         try:
-            # Select voice
-            voice_id = self.voices.get(voice_type, self.voices['female'])
+            # Select voice based on gender
+            voice_id = self.french_voices[gender.lower()][0]
             
-            # Generate speech using Polly
-            response = self.polly.synthesize_speech(
-                Engine='neural',
-                LanguageCode='fr-FR',
+            response = self.client.synthesize_speech(
                 Text=text,
                 OutputFormat='mp3',
-                VoiceId=voice_id
+                VoiceId=voice_id,
+                LanguageCode='fr-FR'
             )
-
-            # Save the audio file
-            output_filename = f"audio_{hash(text)}.mp3"
-            output_path = self.output_dir / output_filename
             
-            with open(output_path, 'wb') as f:
-                f.write(response['AudioStream'].read())
-
-            return str(output_path)
-
-        except Exception as e:
-            raise Exception(f"Error generating audio: {str(e)}")
+            if "AudioStream" in response:
+                return response["AudioStream"].read()
+            else:
+                raise Exception("No audio stream in response")
+                
+        except (BotoCoreError, ClientError) as error:
+            print(f"Error generating audio: {error}")
+            raise error
 
     def generate_question_audio(self, question: str, options: list) -> Dict[str, str]:
         """Generate audio for a question and its options"""
