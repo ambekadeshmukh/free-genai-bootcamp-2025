@@ -25,6 +25,18 @@ Intermediate - Implements RAG, AWS integrations, and audio processing
 - Key phrase identification
 - Translation support
 
+## Planned Features
+
+### 1. Currently Implemented
+- Text-to-speech with Amazon Polly
+- YouTube transcript extraction
+- Basic chat functionality with Amazon Bedrock
+
+### 2. Coming Soon
+- Speech-to-text transcription using OpenAI Whisper
+- Progress tracking
+- Interactive exercises
+
 ## Project Structure
 ```
 listening-comp/
@@ -153,18 +165,14 @@ Core dependencies from `requirements.txt`:
 - pandas==2.2.0
 - numpy==1.24.0
 - boto3==1.34.0
-- openai-whisper==20231117
-- ffmpeg-python==0.2.0
 - youtube-transcript-api==0.6.2
-- chromadb==0.4.22
-- plotly==5.18.0
 - python-dotenv==1.0.0
 - requests==2.31.0
+- openai-whisper==20231117  # For speech-to-text functionality
 
-## AWS Services Used
-- Amazon Polly for text-to-speech
-- Amazon Bedrock for chat and comprehension
-- AWS SDK (boto3) for AWS integration
+AWS Services:
+- Amazon Polly (Text-to-Speech)
+- Amazon Bedrock (Chat and Comprehension)
 
 ## Sample Outputs
 
