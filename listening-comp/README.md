@@ -165,3 +165,17 @@ Core dependencies from `requirements.txt`:
 - Amazon Polly for text-to-speech
 - Amazon Bedrock for chat and comprehension
 - AWS SDK (boto3) for AWS integration
+
+## Sample Outputs
+
+![Screenshot 2025-02-21 222920](https://github.com/user-attachments/assets/51960e5d-1ab5-41b5-890c-46c4c450bdd9)
+
+
+
+![Screenshot 2025-02-21 222942](https://github.com/user-attachments/assets/c7ac0975-2d90-4b83-9543-32e5f8cc4e11)
+
+
+
+![Screenshot 2025-02-21 222616](https://github.com/user-attachments/assets/4f825700-23dd-4479-918c-ce2de89bd23d)
+
+
