@@ -123,3 +123,61 @@ class YouTubeTranscriptDownloader:
             segments.append(current_segment)
             
         return segments
+
+def get_youtube_transcript(video_url: str) -> Optional[str]:
+    """
+    Get transcript from a YouTube video URL
+    
+    Args:
+        video_url: YouTube video URL or ID
+        
+    Returns:
+        Combined transcript text or None if failed
+    """
+    try:
+        # Extract video ID from URL
+        if "youtube.com" in video_url:
+            video_id = video_url.split("v=")[1].split("&")[0]
+        elif "youtu.be" in video_url:
+            video_id = video_url.split("/")[-1]
+        else:
+            video_id = video_url
+
+        # Get transcript
+        transcript_list = YouTubeTranscriptApi.get_transcript(video_id)
+        
+        # Combine all text
+        full_transcript = " ".join([entry['text'] for entry in transcript_list])
+        
+        return full_transcript
+        
+    except Exception as e:
+        print(f"Error getting transcript: {str(e)}")
+        return None
+
+def get_transcript_segments(video_url: str) -> Optional[List[Dict]]:
+    """
+    Get transcript with timestamps from a YouTube video
+    
+    Args:
+        video_url: YouTube video URL or ID
+        
+    Returns:
+        List of transcript segments with timestamps or None if failed
+    """
+    try:
+        # Extract video ID from URL
+        if "youtube.com" in video_url:
+            video_id = video_url.split("v=")[1].split("&")[0]
+        elif "youtu.be" in video_url:
+            video_id = video_url.split("/")[-1]
+        else:
+            video_id = video_url
+
+        # Get transcript
+        transcript_list = YouTubeTranscriptApi.get_transcript(video_id)
+        return transcript_list
+        
+    except Exception as e:
+        print(f"Error getting transcript segments: {str(e)}")
+        return None

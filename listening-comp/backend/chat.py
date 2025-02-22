@@ -188,6 +188,46 @@ class FrenchLearningAssistant:
         # This would handle the specific format returned by Claude
         pass
 
+class BedrockChat:
+    def __init__(self):
+        self.client = boto3.client('bedrock-runtime')
+        self.model_id = "anthropic.claude-v2"  # or your preferred model
+
+    def generate_response(self, prompt: str) -> str:
+        try:
+            body = json.dumps({
+                "prompt": prompt,
+                "max_tokens_to_sample": 2000,
+                "temperature": 0.7,
+                "top_p": 1,
+            })
+
+            response = self.client.invoke_model(
+                modelId=self.model_id,
+                body=body
+            )
+            
+            response_body = json.loads(response['body'].read())
+            return response_body['completion']
+            
+        except Exception as e:
+            print(f"Error generating response: {str(e)}")
+            return ""
+
+    def analyze_transcript(self, transcript: str) -> Dict:
+        """Analyze transcript and generate questions"""
+        prompt = f"""Analyze this transcript and generate:
+        1. 3 comprehension questions
+        2. Key vocabulary words
+        3. Main topics discussed
+
+        Transcript:
+        {transcript}
+        """
+        
+        response = self.generate_response(prompt)
+        return response
+
 def main():
     st.title("French Language Learning Assistant")
     st.subheader("Progressive Learning with RAG")
