@@ -1,0 +1,32 @@
+# Application settings
+app:
+  name: "French Writing Practice"
+  version: "1.0.0"
+  description: "Practice writing French words and get instant feedback"
+
+# User preferences
+user:
+  difficulty: "A1 (Beginner)"
+  feedback_language: "english"
+  show_hints: true
+  save_history: true
+
+# OCR settings
+ocr:
+  engine: "tesseract"
+  sensitivity: 5
+  preprocessing: true
+  language_data: "fra"
+
+# Grading settings
+grading:
+  sensitivity: 0.8
+  accent_weight: 0.5
+  spelling_weight: 1.0
+  allow_minor_variations: true
+
+# Practice settings
+practice:
+  words_per_session: 10
+  retry_failed_words: true
+  spaced_repetition: true
