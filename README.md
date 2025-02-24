@@ -51,7 +51,7 @@ I'll be implementing a system with these main components:
 1. **Pre-Week 1**: Understanding and designing the architecture and setting up the first project module - Sentence Constructor
 2. **Week 1**: Dev and Dev Tools - Built the backend and frontend of the language portal
 3. **Week 2**: Multi Modalities
-4. **Week 3**: 
+4. **Week 3**: Containers & Agents, OPEA
 5. **Week 4**: 
 6. **Week 5**:
 7. **Week 6**: 
