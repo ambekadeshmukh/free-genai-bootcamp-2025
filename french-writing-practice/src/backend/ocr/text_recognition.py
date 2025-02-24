@@ -6,6 +6,8 @@ import os
 from src.backend.ocr.preprocessor import preprocess_image
 from src.utils.helpers import load_config
 
+pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'  # Adjust path as needed
+
 class OCRProcessor:
     def __init__(self):
         # Get configuration
