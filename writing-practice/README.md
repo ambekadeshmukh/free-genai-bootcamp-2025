@@ -1,4 +1,4 @@
-# French Writing Practice App
+# Writing Practice App
 
 A Streamlit application for practicing French handwriting and getting instant feedback.
 
@@ -98,9 +98,16 @@ pytest
 Add new words to the `config/words.json` file or connect to an external API by modifying the `src/backend/data/word_manager.py` file.
 
 
+## Sample Outputs
 
-## Acknowledgements
+![Screenshot 2025-02-24 170831](https://github.com/user-attachments/assets/24303e0c-2093-408a-bbe6-d9353056a12e)
 
-- [Streamlit](https://streamlit.io/)
-- [Tesseract OCR](https://github.com/tesseract-ocr/tesseract)
-- [Python-tesseract](https://github.com/madmaze/python-tesseract)
+![Screenshot 2025-02-24 170933](https://github.com/user-attachments/assets/dd80ddda-57a1-4e66-9bfc-17fa09606c7a)
+
+![Screenshot 2025-02-24 170949](https://github.com/user-attachments/assets/d599fde0-2e0d-4356-98ba-46147d4864f5)
+
+
+![Screenshot 2025-02-24 171010](https://github.com/user-attachments/assets/6f8d6f98-3bc0-424b-ba19-c68051e3f00d)
+
+
+
