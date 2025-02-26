@@ -4,7 +4,7 @@
 ![Docker](https://img.shields.io/badge/docker-required-blue.svg)
 ![FastAPI](https://img.shields.io/badge/fastapi-latest-blue.svg)
 
-This repository demonstrates how to run AI workloads in-house using OPEA (Open Protocol for Enterprise AI) components. It includes implementations of text-to-image and image-to-video services using Docker containers.
+This repository demonstrates how to run AI workloads in-house using OPEA (Open Platform for Enterprise AI) components. It includes implementations of text-to-image and image-to-video services using Docker containers.
 
 ## 🚀 Features
 

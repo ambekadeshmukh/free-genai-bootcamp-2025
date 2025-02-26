@@ -1,0 +1,105 @@
+version: '3.8'
+
+services:
+  # Gateway Service
+  gateway:
+    build:
+      context: ./services/gateway
+      dockerfile: Dockerfile
+    image: ${DOCKER_REGISTRY:-local}/french-learning-gateway:${TAG:-latest}
+    container_name: french-learning-gateway
+    restart: unless-stopped
+    ports:
+      - "${GATEWAY_PORT:-5000}:5000"
+    environment:
+      - VQA_SERVICE_URL=http://vqa:6000
+      - TRANSLATION_SERVICE_URL=http://translation:7000
+      - LANGUAGE_GEN_SERVICE_URL=http://language-gen:8000
+    networks:
+      - french-learning-network
+    depends_on:
+      - vqa
+      - translation
+      - language-gen
+
+  # VisualQnA Service
+  vqa:
+    build:
+      context: ./services/vqa
+      dockerfile: Dockerfile
+    image: ${DOCKER_REGISTRY:-local}/french-learning-vqa:${TAG:-latest}
+    container_name: french-learning-vqa
+    restart: unless-stopped
+    environment:
+      - LVM_MODEL_ID=${LVM_MODEL_ID:-llava-hf/llava-v1.6-mistral-7b-hf}
+      - DEVICE=${DEVICE:-cpu}
+      - HUGGINGFACE_API_TOKEN=${HUGGINGFACE_API_TOKEN:-}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - huggingface-cache:/root/.cache/huggingface
+    networks:
+      - french-learning-network
+
+  # Translation Service
+  translation:
+    build:
+      context: ./services/translation
+      dockerfile: Dockerfile
+    image: ${DOCKER_REGISTRY:-local}/french-learning-translation:${TAG:-latest}
+    container_name: french-learning-translation
+    restart: unless-stopped
+    environment:
+      - TRANSLATION_MODEL=${TRANSLATION_MODEL:-Helsinki-NLP/opus-mt-en-fr}
+      - HUGGINGFACE_API_TOKEN=${HUGGINGFACE_API_TOKEN:-}
+    volumes:
+      - huggingface-cache:/root/.cache/huggingface
+    networks:
+      - french-learning-network
+
+  # Language Generation Service
+  language-gen:
+    build:
+      context: ./services/language_generation
+      dockerfile: Dockerfile
+    image: ${DOCKER_REGISTRY:-local}/french-learning-language-gen:${TAG:-latest}
+    container_name: french-learning-language-gen
+    restart: unless-stopped
+    environment:
+      - LLM_API_URL=${LLM_API_URL:-https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2}
+      - HUGGINGFACE_API_TOKEN=${HUGGINGFACE_API_TOKEN:-}
+    volumes:
+      - language-data:/app/src/data
+      - huggingface-cache:/root/.cache/huggingface
+    networks:
+      - french-learning-network
+
+  # Frontend UI
+  ui:
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+      args:
+        - REACT_APP_API_BASE_URL=${API_BASE_URL:-http://localhost:5000}
+    image: ${DOCKER_REGISTRY:-local}/french-learning-ui:${TAG:-latest}
+    container_name: french-learning-ui
+    restart: unless-stopped
+    ports:
+      - "${UI_PORT:-3000}:80"
+    networks:
+      - french-learning-network
+    depends_on:
+      - gateway
+
+networks:
+  french-learning-network:
+    driver: bridge
+
+volumes:
+  huggingface-cache:
+  language-data:
