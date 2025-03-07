@@ -22,7 +22,6 @@ The project is built using the OPEA MegaService architecture, a modular microser
 - **Language Generation Service**: Creates example sentences and educational content
 - **Frontend UI**: A React-based user interface for interaction
 
-![Architecture Diagram](./architecture-diagram.png)
 
 ## Getting Started
 
@@ -36,8 +35,8 @@ The project is built using the OPEA MegaService architecture, a modular microser
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/french-learning-vqa.git
-   cd french-learning-vqa
+   git clone https://github.com/yourusername/free-genai-bootcamp-2025.git
+   cd megaservice-vqa
    ```
 
 2. Set up environment variables:
@@ -121,19 +120,18 @@ french-learning-vqa/
 - **Deployment**: Docker, Docker Compose
 - **Architecture**: OPEA MegaService framework
 
-## Contributing
+## Sample Output
 
-Contributions are welcome! Please feel free to submit a Pull Request.
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+![WhatsApp Image 2025-03-06 at 6 30 21 PM-2](https://github.com/user-attachments/assets/e6103e86-c534-4627-81b8-b7b679c18408)
+
+
+![WhatsApp Image 2025-03-06 at 6 30 21 PM](https://github.com/user-attachments/assets/eb088b02-e330-4461-8310-4c83893f2c28)
+
 
 
 ## Acknowledgments
 
 - Based on the OPEA MegaService framework
 - Uses LLaVA-NeXT for image understanding
-- Developed for the GenAI Bootcamp project
+- Developed for the GenAI Bootcamp project of Andrew Brown
