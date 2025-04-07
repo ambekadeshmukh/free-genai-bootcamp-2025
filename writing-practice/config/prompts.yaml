@@ -1,0 +1,46 @@
+# OCR prompts
+ocr:
+  image_analysis: |
+    Analyze the handwritten French text in this image.
+    Focus on accurately capturing accented characters.
+    Ignore any non-text elements.
+
+# Grading prompts
+grading:
+  evaluate: |
+    Compare the handwritten French word "{{submitted}}" with the expected word "{{expected}}".
+    Please evaluate:
+    1. Is it correct? (Yes/No)
+    2. What's the similarity score? (0-100%)
+    3. Are there any accent mistakes?
+    4. Provide detailed feedback suitable for a language learner.
+
+# Feedback prompts
+feedback:
+  perfect: |
+    Provide positive reinforcement for a perfectly written French word.
+    Make the learner feel accomplished.
+
+  accent_mistake: |
+    Provide constructive feedback for a French word that is spelled correctly but has accent mistakes.
+    Be encouraging but point out the specific accent errors.
+    
+  spelling_error: |
+    Provide constructive feedback for a misspelled French word.
+    Be encouraging but clear about the spelling errors.
+    
+  major_error: |
+    Provide constructive but encouraging feedback for a French word attempt with major errors.
+    Include the correct spelling and pronunciation tips.
+
+# Sentence generation prompts
+sentence:
+  generate: |
+    Generate a simple French sentence using the word "{{word}}".
+    The sentence should be appropriate for {{level}} level French.
+    The sentence should be relatively short (under 10 words).
+    Include the English translation.
+    
+    Example format:
+    French: Le chat est noir.
+    English: The cat is black.

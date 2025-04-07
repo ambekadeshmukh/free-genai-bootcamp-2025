@@ -1,0 +1,54 @@
+{
+    "transcript_id": "shopping_dialogue_1",
+    "title": "Au Centre Commercial",
+    "language": "fr",
+    "level": "A2",
+    "segments": [
+      {
+        "speaker": "Client",
+        "text": "Bonjour, je cherche le rayon chaussures s'il vous plaît.",
+        "start_time": 0.0,
+        "duration": 3.2,
+        "audio_file": "segment_1.mp3"
+      },
+      {
+        "speaker": "Vendeur",
+        "text": "Bonjour monsieur, c'est au deuxième étage.",
+        "start_time": 3.2,
+        "duration": 2.8,
+        "audio_file": "segment_2.mp3"
+      },
+      {
+        "speaker": "Client",
+        "text": "Merci. Et les soldes, elles commencent quand?",
+        "start_time": 6.0,
+        "duration": 2.5,
+        "audio_file": "segment_3.mp3"
+      },
+      {
+        "speaker": "Vendeur",
+        "text": "Les soldes commencent la semaine prochaine, mercredi.",
+        "start_time": 8.5,
+        "duration": 3.0,
+        "audio_file": "segment_4.mp3"
+      }
+    ],
+    "vocabulary": {
+      "nouns": [
+        {"word": "rayon", "translation": "department", "context": "le rayon chaussures - the shoe department"},
+        {"word": "étage", "translation": "floor", "context": "au deuxième étage - on the second floor"},
+        {"word": "soldes", "translation": "sales", "context": "les soldes commencent - the sales begin"}
+      ],
+      "verbs": [
+        {"word": "chercher", "translation": "to look for", "context": "je cherche - I'm looking for"},
+        {"word": "commencer", "translation": "to begin", "context": "commencent - begin"}
+      ]
+    },
+    "grammar_points": [
+      {
+        "topic": "Question formation",
+        "example": "elles commencent quand?",
+        "explanation": "In informal French, questions can be formed by adding the question word at the end."
+      }
+    ]
+  }

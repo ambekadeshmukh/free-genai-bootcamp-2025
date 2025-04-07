@@ -1,0 +1,180 @@
+{
+    "vocabulary": {
+      "animals": {
+        "elephant": {
+          "translation": "éléphant",
+          "examples": [
+            {
+              "fr": "L'éléphant est un animal très intelligent.",
+              "en": "The elephant is a very intelligent animal."
+            },
+            {
+              "fr": "J'ai vu un éléphant au zoo hier.",
+              "en": "I saw an elephant at the zoo yesterday."
+            },
+            {
+              "fr": "Les éléphants peuvent vivre jusqu'à 70 ans.",
+              "en": "Elephants can live up to 70 years."
+            }
+          ]
+        },
+        "cat": {
+          "translation": "chat",
+          "examples": [
+            {
+              "fr": "Mon chat s'appelle Minou.",
+              "en": "My cat's name is Minou."
+            },
+            {
+              "fr": "Le chat dort sur le canapé.",
+              "en": "The cat is sleeping on the couch."
+            },
+            {
+              "fr": "J'aime jouer avec mon chat.",
+              "en": "I like playing with my cat."
+            }
+          ]
+        },
+        "dog": {
+          "translation": "chien",
+          "examples": [
+            {
+              "fr": "Le chien est le meilleur ami de l'homme.",
+              "en": "The dog is man's best friend."
+            },
+            {
+              "fr": "Mon chien aime courir dans le parc.",
+              "en": "My dog likes to run in the park."
+            },
+            {
+              "fr": "As-tu un chien comme animal de compagnie?",
+              "en": "Do you have a dog as a pet?"
+            }
+          ]
+        },
+        "lion": {
+          "translation": "lion",
+          "examples": [
+            {
+              "fr": "Le lion est le roi de la jungle.",
+              "en": "The lion is the king of the jungle."
+            },
+            {
+              "fr": "Les lions vivent en Afrique.",
+              "en": "Lions live in Africa."
+            },
+            {
+              "fr": "Le rugissement du lion est très puissant.",
+              "en": "The lion's roar is very powerful."
+            }
+          ]
+        }
+      },
+      "food": {
+        "apple": {
+          "translation": "pomme",
+          "examples": [
+            {
+              "fr": "J'ai mangé une pomme ce matin.",
+              "en": "I ate an apple this morning."
+            },
+            {
+              "fr": "Les pommes rouges sont délicieuses.",
+              "en": "Red apples are delicious."
+            },
+            {
+              "fr": "Je préfère les pommes vertes.",
+              "en": "I prefer green apples."
+            }
+          ]
+        },
+        "bread": {
+          "translation": "pain",
+          "examples": [
+            {
+              "fr": "Le pain français est très bon.",
+              "en": "French bread is very good."
+            },
+            {
+              "fr": "J'achète du pain à la boulangerie.",
+              "en": "I buy bread at the bakery."
+            },
+            {
+              "fr": "Je mange du pain au petit déjeuner.",
+              "en": "I eat bread for breakfast."
+            }
+          ]
+        },
+        "cheese": {
+          "translation": "fromage",
+          "examples": [
+            {
+              "fr": "La France est connue pour ses fromages.",
+              "en": "France is known for its cheeses."
+            },
+            {
+              "fr": "J'adore le fromage sur les pâtes.",
+              "en": "I love cheese on pasta."
+            },
+            {
+              "fr": "Quel est ton fromage préféré?",
+              "en": "What is your favorite cheese?"
+            }
+          ]
+        }
+      },
+      "everyday": {
+        "house": {
+          "translation": "maison",
+          "examples": [
+            {
+              "fr": "Ma maison est près du parc.",
+              "en": "My house is near the park."
+            },
+            {
+              "fr": "J'aime rester à la maison le dimanche.",
+              "en": "I like staying at home on Sundays."
+            },
+            {
+              "fr": "C'est une belle maison.",
+              "en": "It's a beautiful house."
+            }
+          ]
+        },
+        "car": {
+          "translation": "voiture",
+          "examples": [
+            {
+              "fr": "J'ai acheté une nouvelle voiture.",
+              "en": "I bought a new car."
+            },
+            {
+              "fr": "Sa voiture est rouge.",
+              "en": "His car is red."
+            },
+            {
+              "fr": "Je vais au travail en voiture.",
+              "en": "I go to work by car."
+            }
+          ]
+        },
+        "book": {
+          "translation": "livre",
+          "examples": [
+            {
+              "fr": "J'ai lu un bon livre hier soir.",
+              "en": "I read a good book last night."
+            },
+            {
+              "fr": "Ce livre est en français.",
+              "en": "This book is in French."
+            },
+            {
+              "fr": "Quel livre lis-tu en ce moment?",
+              "en": "What book are you reading right now?"
+            }
+          ]
+        }
+      }
+    }
+  }

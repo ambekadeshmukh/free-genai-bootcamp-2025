@@ -1,0 +1,50 @@
+{
+    "questions": [
+      {
+        "id": "dialogue_1",
+        "type": "dialogue",
+        "question_fr": "À quelle heure le magasin ouvre-t-il?",
+        "question_en": "What time does the store open?",
+        "options": [
+          "À huit heures",
+          "À neuf heures",
+          "À dix heures",
+          "À onze heures"
+        ],
+        "correct_index": 1,
+        "explanation": "In the dialogue, the store clerk mentions they open at 9:00 AM (neuf heures)",
+        "audio_files": {
+          "question": "dialogue_1_q.mp3",
+          "options": [
+            "dialogue_1_opt1.mp3",
+            "dialogue_1_opt2.mp3",
+            "dialogue_1_opt3.mp3",
+            "dialogue_1_opt4.mp3"
+          ]
+        }
+      },
+      {
+        "id": "grammar_1",
+        "type": "grammar",
+        "question_fr": "Je ___ étudiant.",
+        "question_en": "I am a student.",
+        "options": [
+          "suis",
+          "es",
+          "est",
+          "sont"
+        ],
+        "correct_index": 0,
+        "explanation": "With 'je' (I), we use 'suis' as the conjugation of être (to be)",
+        "audio_files": {
+          "question": "grammar_1_q.mp3",
+          "options": [
+            "grammar_1_opt1.mp3",
+            "grammar_1_opt2.mp3",
+            "grammar_1_opt3.mp3",
+            "grammar_1_opt4.mp3"
+          ]
+        }
+      }
+    ]
+  }

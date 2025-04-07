@@ -1,0 +1,42 @@
+{
+  "verbs": [
+    {
+      "french": "être",
+      "phonetic": "ɛtʁ",
+      "english": "to be",
+      "parts": {
+        "type": "verb",
+        "group": "irregular",
+        "conjugation": {
+          "present": {
+            "je": "suis",
+            "tu": "es",
+            "il/elle": "est",
+            "nous": "sommes",
+            "vous": "êtes",
+            "ils/elles": "sont"
+          }
+        }
+      }
+    },
+    {
+      "french": "avoir",
+      "phonetic": "avwaʁ",
+      "english": "to have",
+      "parts": {
+        "type": "verb",
+        "group": "irregular",
+        "conjugation": {
+          "present": {
+            "je": "ai",
+            "tu": "as",
+            "il/elle": "a",
+            "nous": "avons",
+            "vous": "avez",
+            "ils/elles": "ont"
+          }
+        }
+      }
+    }
+  ]
+}
