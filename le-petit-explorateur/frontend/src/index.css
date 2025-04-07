@@ -1,0 +1,78 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Your custom CSS below this point */
+:root {
+  /* Primary brand colors */
+  --color-yellow: #FFF4A3;
+  --color-yellow-dark: #F9D44C;
+  --color-red: #FF8B8B;
+  --color-red-dark: #E57373;
+  --color-green: #ABEBC6;
+  --color-green-dark: #7DCEA0;
+  --color-blue: #87CEEB;
+  --color-blue-dark: #5DADE2;
+  
+  /* Text colors */
+  --color-text-dark: #2C3E50;
+  --color-text-medium: #34495E;
+  --color-text-light: #FFFFFF;
+  
+  /* Background colors with opacity */
+  --color-yellow-bg: rgba(255, 244, 163, 0.4);
+  --color-red-bg: rgba(255, 139, 139, 0.4);
+  --color-green-bg: rgba(171, 235, 198, 0.4);
+  --color-blue-bg: rgba(135, 206, 235, 0.4);
+  
+  /* Shadow and elevation */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  
+  /* Border radius */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 1rem;
+}
+
+/* Base styles */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+  background-color: #f8f9fa;
+}
+
+/* Custom components */
+.card {
+  @apply bg-white rounded-lg shadow-sm p-6 mb-4 transition-all duration-200 ease-in-out;
+}
+
+.card:hover {
+  @apply transform -translate-y-1 shadow-md;
+}
+
+.activities-grid {
+  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6;
+}
+
+.progress-section {
+  @apply bg-yellow-50 rounded-lg p-6 mb-8;
+}
+
+/* Dark mode overrides */
+@media (prefers-color-scheme: dark) {
+  body {
+    @apply bg-gray-900;
+  }
+  
+  .card {
+    @apply bg-gray-800 text-white;
+  }
+  
+  .progress-section {
+    @apply bg-gray-800/50;
+  }
+}
