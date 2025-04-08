@@ -60,7 +60,7 @@ const HomePage = () => {
       beginner: {
         title: 'French Essentials',
         description: 'Master basic greetings, introductions, and everyday phrases',
-        activities: ['dailyQuickLearn', 'wordLineup', 'phraseConstructor', 'quizChallenge']
+        activities: ['dailyQuickLearn', 'imageWordMatch', 'phraseConstructor', 'quizChallenge']
       },
       intermediate: {
         title: 'Conversation Builder',
@@ -138,7 +138,7 @@ const HomePage = () => {
                       className="p-3 rounded-lg text-center transition-transform hover:scale-105"
                       style={{ 
                         backgroundColor: activityInfo.color, 
-                        color: activity === 'wordLineup' ? 'white' : colors.darkText
+                        color: activity === 'imageWordMatch' ? 'white' : colors.darkText
                       }}
                       onClick={handleActivityClick}
                     >
@@ -187,10 +187,10 @@ const HomePage = () => {
           onClick={handleActivityClick}
         />
         <ActivityCard 
-          title="Word Lineup"
+          title="Image Word Match"
           description="Match French words with their corresponding images"
           icon="🔤"
-          link="/games/word-lineup"
+          link="/games/image-word-match"
           backgroundColor={colors.blue + '60'}
           onClick={handleActivityClick}
         />
@@ -315,9 +315,9 @@ function getActivityInfo(activity) {
       icon: '📚',
       color: '#FFF4A3' + '60'
     },
-    wordLineup: {
-      name: 'Word Lineup',
-      path: '/games/word-lineup',
+    imageWordMatch: {
+      name: 'Image Word Match',
+      path: '/games/image-word-match',
       icon: '🔤',
       color: '#FF8B8B' + '60'
     },

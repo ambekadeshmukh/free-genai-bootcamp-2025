@@ -3,6 +3,7 @@ import { useProgress } from '../../contexts/ProgressContext';
 import { useChalkboard } from '../../contexts/ChalkboardContext';
 import apiService from '../../services/apiService';
 import Loading from '../../components/common/Loading';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
 
 const QuizChallenge = () => {
   const { updateProgress } = useProgress();
@@ -22,6 +23,7 @@ const QuizChallenge = () => {
   const [category, setCategory] = useState('mixed');
   const [difficulty, setDifficulty] = useState('beginner');
   const [error, setError] = useState(null);
+  const [fetchedCategories, setFetchedCategories] = useState(new Set());
   
   // Timer reference
   const timerRef = useRef(null);
@@ -84,10 +86,12 @@ const QuizChallenge = () => {
     setError(null);
     
     try {
-      // Get quiz data from API service
+      // Add this category to fetched categories to avoid repetition
+      setFetchedCategories(prev => new Set([...prev, category]));
+      
+      // Use improved apiService to get quiz data
       const quizData = await apiService.getQuizData(category, difficulty, 10);
       
-      // Validate data
       if (!quizData || quizData.length === 0) {
         throw new Error('No quiz questions returned');
       }
@@ -97,96 +101,14 @@ const QuizChallenge = () => {
       setScore(0);
       setStreak(0);
       resetTimer();
+      setSelectedAnswer(null);
+      setShowFeedback(false);
     } catch (error) {
       console.error('Error fetching questions:', error);
-      setError('Failed to load quiz questions. Using fallback questions instead.');
-      
-      // Use fallback questions
-      const fallbackData = getFallbackQuizData();
-      setQuestions(fallbackData);
-      setCurrentQuestion(0);
-      setScore(0);
-      setStreak(0);
-      resetTimer();
+      setError('Failed to load quiz questions. Please try a different category or difficulty.');
     } finally {
       setLoading(false);
     }
-  };
-  
-  // Get fallback quiz data
-  const getFallbackQuizData = () => {
-    return [
-      {
-        id: '1',
-        text: 'What is "apple" in French?',
-        options: ['Pomme', 'Banane', 'Orange', 'Fraise'],
-        correctAnswer: 'Pomme',
-        explanation: '"Pomme" is the French word for "apple".'
-      },
-      {
-        id: '2',
-        text: 'Which greeting is used in the evening?',
-        options: ['Bonjour', 'Bonsoir', 'Salut', 'Au revoir'],
-        correctAnswer: 'Bonsoir',
-        explanation: '"Bonsoir" means "good evening" in French.'
-      },
-      {
-        id: '3',
-        text: 'How do you say "thank you" in French?',
-        options: ['S\'il vous plaît', 'Excusez-moi', 'Merci', 'Pardon'],
-        correctAnswer: 'Merci',
-        explanation: '"Merci" means "thank you" in French.'
-      },
-      {
-        id: '4',
-        text: 'Which is the correct translation of "I speak French"?',
-        options: ['Je parle français', 'Tu parles français', 'Vous parlez français', 'Nous parlons français'],
-        correctAnswer: 'Je parle français',
-        explanation: '"Je parle français" means "I speak French" in French.'
-      },
-      {
-        id: '5',
-        text: 'What color is "rouge" in English?',
-        options: ['Green', 'Blue', 'Red', 'Yellow'],
-        correctAnswer: 'Red',
-        explanation: '"Rouge" means "red" in French.'
-      },
-      {
-        id: '6',
-        text: 'Which word means "dog" in French?',
-        options: ['Chat', 'Chien', 'Oiseau', 'Poisson'],
-        correctAnswer: 'Chien',
-        explanation: '"Chien" means "dog" in French.'
-      },
-      {
-        id: '7',
-        text: 'How do you count to three in French?',
-        options: ['Un, trois, deux', 'Un, deux, trois', 'Trois, deux, un', 'Deux, un, trois'],
-        correctAnswer: 'Un, deux, trois',
-        explanation: 'The correct way to count to three in French is "un, deux, trois".'
-      },
-      {
-        id: '8',
-        text: 'Which means "Goodbye" in French?',
-        options: ['Bonjour', 'Au revoir', 'Bonsoir', 'Bienvenue'],
-        correctAnswer: 'Au revoir',
-        explanation: '"Au revoir" means "goodbye" in French.'
-      },
-      {
-        id: '9',
-        text: 'What does "Excusez-moi" mean?',
-        options: ['Thank you', 'Please', 'Excuse me', 'You\'re welcome'],
-        correctAnswer: 'Excuse me',
-        explanation: '"Excusez-moi" means "excuse me" in French.'
-      },
-      {
-        id: '10',
-        text: 'The French word for "water" is:',
-        options: ['Lait', 'Vin', 'Café', 'Eau'],
-        correctAnswer: 'Eau',
-        explanation: '"Eau" means "water" in French.'
-      }
-    ];
   };
   
   // Handle time up (no answer selected)
@@ -296,6 +218,10 @@ const QuizChallenge = () => {
   // Play again
   const handlePlayAgain = () => {
     if (playSound) playSound('click');
+    // Reset fetched categories if we've fetched all of them
+    if (fetchedCategories.size >= categories.length) {
+      setFetchedCategories(new Set());
+    }
     setGameState('intro');
   };
   

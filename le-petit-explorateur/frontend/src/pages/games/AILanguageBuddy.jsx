@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useProgress } from '../../contexts/ProgressContext';
 import { useChalkboard } from '../../contexts/ChalkboardContext';
-import { useAI } from '../../contexts/AIContext';
 import apiService from '../../services/apiService';
 import Loading from '../../components/common/Loading';
 import ErrorMessage from '../../components/common/ErrorMessage';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
 
 const AILanguageBuddy = () => {
   const { updateProgress } = useProgress();
   const { playSound } = useChalkboard();
-  const { isProcessing, setIsProcessing } = useAI();
+  
+  // State variables
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -18,6 +19,7 @@ const AILanguageBuddy = () => {
   const [suggestions, setSuggestions] = useState([]);
   const [showIntro, setShowIntro] = useState(true);
   const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef(null);
   
   // Conversation topics
@@ -46,12 +48,13 @@ const AILanguageBuddy = () => {
     
     // Clear any previous errors
     setError(null);
-    setIsProcessing(true);
+    setLoading(true);
     setIsTyping(true);
     
     try {
       // Add user message to chat
       const userMessage = {
+        id: Date.now().toString(),
         role: 'user',
         content: message,
         timestamp: new Date().toISOString()
@@ -61,9 +64,14 @@ const AILanguageBuddy = () => {
       setInputMessage('');
       
       // Get conversation history for context, but limit to recent messages
-      const conversationHistory = isTopicStarter ? [] : messages.slice(-6);
+      const conversationHistory = isTopicStarter 
+        ? [] 
+        : messages.slice(-10).map(msg => ({
+            role: msg.role,
+            content: msg.content
+          }));
       
-      // Send message to AI Buddy
+      // Send message to AI Buddy using the improved API service
       const response = await apiService.chatWithAI(message, userLevel, conversationHistory);
       
       if (!response || !response.response) {
@@ -72,6 +80,7 @@ const AILanguageBuddy = () => {
       
       // Get AI response and suggestions
       const aiResponse = {
+        id: (Date.now() + 1).toString(),
         role: 'assistant',
         content: response.response,
         timestamp: new Date().toISOString()
@@ -94,15 +103,10 @@ const AILanguageBuddy = () => {
       });
     } catch (error) {
       console.error('Error sending message to AI Buddy:', error);
-      setError(error.message || 'Sorry, I had trouble connecting to the language service. Please try again.');
-      
-      // Don't show fallback responses anymore, show the actual error
-      if (error.response?.data?.error) {
-        setError(error.response.data.error);
-      }
+      setError('Sorry, I had trouble connecting to the language service. Please try again.');
     } finally {
       setIsTyping(false);
-      setIsProcessing(false);
+      setLoading(false);
       scrollToBottom();
     }
   };
@@ -148,11 +152,11 @@ const AILanguageBuddy = () => {
         <ErrorMessage message={error} />
       )}
 
-      {isProcessing && (
-        <Loading />
+      {loading && showIntro && (
+        <Loading message="Preparing conversation assistant..." />
       )}
 
-      {showIntro ? (
+      {showIntro && !loading ? (
         <div className="bg-white rounded-lg shadow-lg p-6">
           <h2 className="text-xl font-bold mb-4 text-center text-slate-800">Start a Conversation</h2>
           
@@ -193,7 +197,7 @@ const AILanguageBuddy = () => {
             </div>
           </div>
         </div>
-      ) : (
+      ) : !showIntro && (
         <>
           <div className="flex justify-between items-center mb-2">
             <div className="flex items-center">
@@ -226,7 +230,7 @@ const AILanguageBuddy = () => {
               ) : (
                 messages.map((message, index) => (
                   <div 
-                    key={index} 
+                    key={message.id || index} 
                     className={`mb-4 max-w-3/4 ${message.role === 'user' ? 'ml-auto' : 'mr-auto'}`}
                   >
                     <div 
@@ -280,14 +284,18 @@ const AILanguageBuddy = () => {
                   onChange={(e) => setInputMessage(e.target.value)}
                   placeholder="Type your message in French or English..."
                   className="flex-1 p-2 border border-slate-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  disabled={isTyping || isProcessing}
+                  disabled={isTyping || loading}
                 />
                 <button
                   type="submit"
                   className="px-4 py-2 bg-blue-600 text-white rounded-r-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={isTyping || isProcessing || !inputMessage.trim()}
+                  disabled={isTyping || loading || !inputMessage.trim()}
                 >
-                  Send
+                  {isTyping || loading ? (
+                    <LoadingSpinner size="sm" color="white" />
+                  ) : (
+                    'Send'
+                  )}
                 </button>
               </form>
             </div>

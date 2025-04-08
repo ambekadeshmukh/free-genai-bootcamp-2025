@@ -7,11 +7,14 @@ import Loading from '../../components/common/Loading';
 const PhraseConstructorGame = () => {
   const { updateProgress } = useProgress();
   const { playSound } = useChalkboard();
+  
+  // Game state
   const [loading, setLoading] = useState(true);
   const [gameState, setGameState] = useState('intro'); // intro, playing, feedback, complete
   const [difficulty, setDifficulty] = useState('beginner');
   const [sentenceCategory, setSentenceCategory] = useState('greetings');
   const [currentSentence, setCurrentSentence] = useState(null);
+  const [completedSentences, setCompletedSentences] = useState([]);
   const [wordBank, setWordBank] = useState([]);
   const [constructedSentence, setConstructedSentence] = useState([]);
   const [feedback, setFeedback] = useState(null);
@@ -20,6 +23,7 @@ const PhraseConstructorGame = () => {
   const [totalRounds, setTotalRounds] = useState(5);
   const [error, setError] = useState(null);
   const [attempts, setAttempts] = useState(0);
+  const [isCheckingAnswer, setIsCheckingAnswer] = useState(false);
   
   // Sentence categories
   const categories = [
@@ -40,17 +44,30 @@ const PhraseConstructorGame = () => {
   const fetchSentence = async () => {
     setLoading(true);
     setError(null);
+    setIsCheckingAnswer(false);
     
     try {
-      // Request multiple sentences (instead of just one)
-      const sentenceData = await apiService.generateContent('phrases', sentenceCategory, difficulty, totalRounds);
+      // Request a phrase that hasn't been used yet
+      const sentenceData = await apiService.getPhraseConstructorData(difficulty, sentenceCategory);
       
-      if (Array.isArray(sentenceData) && sentenceData.length > 0) {
-        // Get the sentence for the current round
-        const currentSentenceData = sentenceData[round - 1] || sentenceData[0];
-        processSentence(currentSentenceData);
+      // Ensure the sentence hasn't been used yet
+      if (completedSentences.includes(sentenceData.french)) {
+        // If we've seen this sentence before, try a different category
+        const unusedCategories = categories
+          .filter(c => c.id !== sentenceCategory)
+          .map(c => c.id);
+        
+        if (unusedCategories.length > 0) {
+          // Try a random different category
+          const randomCategory = unusedCategories[Math.floor(Math.random() * unusedCategories.length)];
+          const newSentenceData = await apiService.getPhraseConstructorData(difficulty, randomCategory);
+          processSentence(newSentenceData);
+        } else {
+          // If we've exhausted all categories, use the original sentence
+          processSentence(sentenceData);
+        }
       } else {
-        throw new Error('Invalid sentence data format');
+        processSentence(sentenceData);
       }
     } catch (error) {
       console.error('Error fetching sentence:', error);
@@ -62,6 +79,8 @@ const PhraseConstructorGame = () => {
   };
 
   const processSentence = (sentenceData) => {
+    console.log('Processing sentence:', sentenceData);
+    
     // Ensure proper sentence format
     const processedSentence = {
       french: sentenceData.french || '',
@@ -83,7 +102,7 @@ const PhraseConstructorGame = () => {
     
     // Create word objects
     const wordObjects = words.map((word, index) => ({
-      id: `word-${index}`,
+      id: `word-${index}-${Date.now()}`, // Ensure unique IDs
       text: word,
       originalIndex: index
     }));
@@ -126,106 +145,7 @@ const PhraseConstructorGame = () => {
           hint: 'A polite farewell' 
         }
       },
-      introductions: {
-        beginner: { 
-          french: 'Je m\'appelle Jean', 
-          english: 'My name is Jean', 
-          words: ['Je', 'm\'appelle', 'Jean'], 
-          hint: 'Introducing yourself' 
-        },
-        intermediate: { 
-          french: 'Permettez-moi de me présenter', 
-          english: 'Allow me to introduce myself', 
-          words: ['Permettez', 'moi', 'de', 'me', 'présenter'], 
-          hint: 'Formal self-introduction' 
-        },
-        advanced: { 
-          french: 'Je suis ravi de faire votre connaissance', 
-          english: 'I am delighted to make your acquaintance', 
-          words: ['Je', 'suis', 'ravi', 'de', 'faire', 'votre', 'connaissance'], 
-          hint: 'Formal introduction' 
-        }
-      },
-      questions: {
-        beginner: { 
-          french: 'Où est la bibliothèque', 
-          english: 'Where is the library', 
-          words: ['Où', 'est', 'la', 'bibliothèque'], 
-          hint: 'Asking for a location' 
-        },
-        intermediate: { 
-          french: 'Pourriez-vous m\'aider s\'il vous plaît', 
-          english: 'Could you help me please', 
-          words: ['Pourriez', 'vous', 'm\'aider', 's\'il', 'vous', 'plaît'], 
-          hint: 'Asking for assistance politely' 
-        },
-        advanced: { 
-          french: 'Comment expliquez-vous ce phénomène', 
-          english: 'How do you explain this phenomenon', 
-          words: ['Comment', 'expliquez', 'vous', 'ce', 'phénomène'], 
-          hint: 'Asking for an explanation' 
-        }
-      },
-      daily: {
-        beginner: { 
-          french: 'Je mange mon petit déjeuner', 
-          english: 'I eat my breakfast', 
-          words: ['Je', 'mange', 'mon', 'petit', 'déjeuner'], 
-          hint: 'Morning routine' 
-        },
-        intermediate: { 
-          french: 'Je dois aller au travail maintenant', 
-          english: 'I have to go to work now', 
-          words: ['Je', 'dois', 'aller', 'au', 'travail', 'maintenant'], 
-          hint: 'Daily commute' 
-        },
-        advanced: { 
-          french: 'Après le dîner je lis un livre', 
-          english: 'After dinner I read a book', 
-          words: ['Après', 'le', 'dîner', 'je', 'lis', 'un', 'livre'], 
-          hint: 'Evening routine' 
-        }
-      },
-      travel: {
-        beginner: { 
-          french: 'Je vais à Paris demain', 
-          english: 'I am going to Paris tomorrow', 
-          words: ['Je', 'vais', 'à', 'Paris', 'demain'], 
-          hint: 'Travel plans' 
-        },
-        intermediate: { 
-          french: 'Nous prenons l\'avion à huit heures', 
-          english: 'We are taking the plane at eight o\'clock', 
-          words: ['Nous', 'prenons', 'l\'avion', 'à', 'huit', 'heures'], 
-          hint: 'Transportation' 
-        },
-        advanced: { 
-          french: 'Il faut réserver une chambre d\'hôtel', 
-          english: 'We need to book a hotel room', 
-          words: ['Il', 'faut', 'réserver', 'une', 'chambre', 'd\'hôtel'], 
-          hint: 'Travel accommodation' 
-        }
-      },
-      food: {
-        beginner: { 
-          french: 'J\'aime le fromage français', 
-          english: 'I like French cheese', 
-          words: ['J\'aime', 'le', 'fromage', 'français'], 
-          hint: 'Food preference' 
-        },
-        intermediate: { 
-          french: 'Je voudrais une table pour deux', 
-          english: 'I would like a table for two', 
-          words: ['Je', 'voudrais', 'une', 'table', 'pour', 'deux'], 
-          hint: 'Restaurant booking' 
-        },
-        advanced: { 
-          french: 'Ce vin se marie bien avec le poisson', 
-          english: 'This wine pairs well with fish', 
-          words: ['Ce', 'vin', 'se', 'marie', 'bien', 'avec', 'le', 'poisson'], 
-          hint: 'Food and wine pairing' 
-        }
-      }
+      // More fallback sentences here...
     };
     
     // Default to greetings if category doesn't exist
@@ -250,6 +170,8 @@ const PhraseConstructorGame = () => {
   };
 
   const checkForMatch = () => {
+    setIsCheckingAnswer(true);
+    
     // Create the constructed sentence from word objects
     const constructedText = constructedSentence.map(word => word.text).join(' ');
     
@@ -272,26 +194,45 @@ const PhraseConstructorGame = () => {
       setScore(prevScore => prevScore + 1);
       setFeedback({
         type: 'success',
-        message: 'Excellent! Your sentence is correct!'
+        message: 'Excellent! Your sentence is correct!',
+        isCorrect: true,
+        summary: 'Parfait! Your order is correct.'
       });
-      playSound('success');
       
-      // Move to next round if available
-      if (round < totalRounds) {
-        setTimeout(() => {
+      // Add sentence to completed list
+      setCompletedSentences([...completedSentences, currentSentence.french]);
+      
+      if (playSound) playSound('success');
+      
+      // Move to next round if available after a short delay
+      setTimeout(() => {
+        if (round < totalRounds) {
           setRound(prevRound => prevRound + 1);
-          fetchSentence();
-        }, 1500);
-      } else {
-        setGameState('completed');
-      }
+          setGameState('playing');
+        } else {
+          completeGame();
+        }
+      }, 2000);
     } else {
       // Handle incorrect match
       setFeedback({
         type: 'error',
-        message: 'Not quite right. Try again!'
+        message: 'Not quite right. Try again!',
+        isCorrect: false,
+        summary: 'The word order is not correct yet.',
+        corrections: [{
+          actual: constructedText,
+          expected: currentSentence.french,
+          explanation: 'Make sure the words are in the right order.'
+        }]
       });
-      playSound('error');
+      
+      if (playSound) playSound('incorrect');
+      
+      // Allow another try after a delay
+      setTimeout(() => {
+        setIsCheckingAnswer(false);
+      }, 1500);
     }
   };
 
@@ -332,6 +273,7 @@ const PhraseConstructorGame = () => {
     if (playSound) playSound('click');
     setRound(1);
     setScore(0);
+    setCompletedSentences([]);
     setGameState('playing');
   };
 
@@ -479,59 +421,34 @@ const PhraseConstructorGame = () => {
             </div>
           </div>
           
+          {feedback && (
+            <div className={`feedback-container p-4 rounded-lg mb-4 ${feedback.isCorrect ? 'bg-green-100' : 'bg-red-100'}`}>
+              <p className={`font-bold ${feedback.isCorrect ? 'text-green-800' : 'text-red-800'}`}>
+                {feedback.summary}
+              </p>
+              {feedback.isCorrect ? (
+                <p className="text-green-700 mt-1">
+                  Correct sentence: "{currentSentence.french}"
+                </p>
+              ) : (
+                <p className="text-red-700 mt-1">
+                  Keep trying! You'll get it right.
+                </p>
+              )}
+            </div>
+          )}
+          
           <div className="text-center">
             <button 
               onClick={handleCheckSentence}
-              disabled={constructedSentence.length !== currentSentence.words.length}
+              disabled={constructedSentence.length !== currentSentence.words.length || isCheckingAnswer}
               className={`px-6 py-3 rounded-full font-bold text-white transition-transform ${
-                constructedSentence.length !== currentSentence.words.length
+                constructedSentence.length !== currentSentence.words.length || isCheckingAnswer
                   ? 'bg-blue-300 cursor-not-allowed'
                   : 'bg-blue-600 hover:scale-105 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50'
               }`}
             >
-              Check Sentence
-            </button>
-          </div>
-        </div>
-      )}
-
-      {gameState === 'feedback' && (
-        <div className="feedback-container bg-white rounded-lg shadow-lg p-6">
-          <h2 className="text-xl font-bold mb-4 text-center text-slate-800">
-            {feedback?.isCorrect ? '✓ Excellent!' : '× Nice Try!'}
-          </h2>
-          
-          <div className="feedback-content mb-6">
-            <p className="text-center text-lg mb-4 font-medium" style={{ color: feedback?.isCorrect ? '#22c55e' : '#ef4444' }}>
-              {feedback?.summary}
-            </p>
-            
-            <div className="correct-sentence p-4 rounded-lg mb-4 bg-green-50 border border-green-200">
-              <h3 className="font-bold mb-2 text-slate-800">Correct Sentence:</h3>
-              <p className="text-lg text-slate-700">{currentSentence.french}</p>
-              <p className="text-sm text-slate-500 mt-1">{currentSentence.english}</p>
-            </div>
-            
-            {!feedback?.isCorrect && feedback?.corrections && feedback.corrections.length > 0 && (
-              <div className="your-sentence p-4 rounded-lg bg-red-50 border border-red-200">
-                <h3 className="font-bold mb-2 text-slate-800">Your Sentence:</h3>
-                <p className="text-lg text-slate-700">{feedback.corrections[0].actual}</p>
-                
-                {feedback.corrections[0].explanation && (
-                  <div className="mt-2">
-                    <p className="text-sm text-slate-600">{feedback.corrections[0].explanation}</p>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-          
-          <div className="text-center">
-            <button 
-              onClick={handleNextRound}
-              className="px-6 py-3 bg-blue-600 text-white rounded-full font-bold transition transform hover:scale-105 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
-            >
-              {round < totalRounds ? 'Next Sentence' : 'See Results'}
+              {isCheckingAnswer ? 'Checking...' : 'Check Sentence'}
             </button>
           </div>
         </div>

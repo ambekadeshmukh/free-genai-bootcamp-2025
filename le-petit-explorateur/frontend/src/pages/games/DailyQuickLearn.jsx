@@ -1,12 +1,17 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useProgress } from '../../contexts/ProgressContext';
+import { useChalkboard } from '../../contexts/ChalkboardContext';
 import { useAI } from '../../contexts/AIContext';
-import api from '../../services/apiService';
+import apiService from '../../services/apiService';
+import Loading from '../../components/common/Loading';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 
 const DailyQuickLearn = () => {
   const { updateProgress } = useProgress();
   const { playSound } = useChalkboard();
   const { userLevel } = useAI();
+  
+  // State variables
   const [loading, setLoading] = useState(true);
   const [currentStep, setCurrentStep] = useState('intro'); // intro, flashcards, quiz, complete, completed
   const [flashcardIndex, setFlashcardIndex] = useState(0);
@@ -19,6 +24,7 @@ const DailyQuickLearn = () => {
   const [isFlipped, setIsFlipped] = useState(false);
   const [error, setError] = useState(null);
   const [currentWordDetails, setCurrentWordDetails] = useState(null);
+  const [isLoadingWordDetails, setIsLoadingWordDetails] = useState(false);
 
   useEffect(() => {
     // Load user progress from localStorage
@@ -58,105 +64,20 @@ const DailyQuickLearn = () => {
     setError(null);
     
     try {
-      // Get daily lesson vocabulary
-      const response = await api.get('/api/vocabulary/daily');
-      setVocabularySet(response.data);
+      // Get daily lesson vocabulary using improved API service
+      const vocabulary = await apiService.getDailyLesson();
+      
+      console.log('Loaded vocabulary:', vocabulary);
+      setVocabularySet(vocabulary);
+      
+      // Initialize user answers array
+      initializeUserAnswers(vocabulary.length);
     } catch (error) {
       console.error('Error fetching vocabulary:', error);
       setError('Unable to load today\'s vocabulary. Using fallback words instead.');
-      
-      // Fallback vocabulary if API fails
-      const fallbackVocabulary = getFallbackVocabulary();
-      setVocabularySet(fallbackVocabulary);
     } finally {
       setLoading(false);
     }
-  };
-
-  const getFallbackVocabulary = () => {
-    // Generate a fallback set based on today's date to keep it consistent
-    const date = new Date();
-    const dayOfYear = Math.floor((date - new Date(date.getFullYear(), 0, 0)) / (1000 * 60 * 60 * 24));
-    
-    // Rotate through different themes each day
-    const themes = ['greetings', 'food', 'animals', 'household', 'travel', 'colors', 'numbers'];
-    const todayTheme = themes[dayOfYear % themes.length];
-    
-    // Fallback vocabulary sets by theme
-    const fallbackSets = {
-      greetings: [
-        { id: '1', french: 'Bonjour', english: 'Hello', category: 'greetings', exampleFrench: 'Bonjour, comment allez-vous?', exampleEnglish: 'Hello, how are you?' },
-        { id: '2', french: 'Au revoir', english: 'Goodbye', category: 'greetings', exampleFrench: 'Au revoir et à bientôt!', exampleEnglish: 'Goodbye and see you soon!' },
-        { id: '3', french: 'S\'il vous plaît', english: 'Please', category: 'expressions', exampleFrench: 'Un café, s\'il vous plaît.', exampleEnglish: 'A coffee, please.' },
-        { id: '4', french: 'Merci', english: 'Thank you', category: 'expressions', exampleFrench: 'Merci beaucoup pour votre aide.', exampleEnglish: 'Thank you very much for your help.' },
-        { id: '5', french: 'Excusez-moi', english: 'Excuse me', category: 'expressions', exampleFrench: 'Excusez-moi, où est la gare?', exampleEnglish: 'Excuse me, where is the train station?' },
-        { id: '6', french: 'Bonsoir', english: 'Good evening', category: 'greetings', exampleFrench: 'Bonsoir, comment allez-vous?', exampleEnglish: 'Good evening, how are you?' },
-        { id: '7', french: 'Enchanté', english: 'Nice to meet you', category: 'greetings', exampleFrench: 'Enchanté de faire votre connaissance.', exampleEnglish: 'Nice to meet you.' }
-      ],
-      food: [
-        { id: '1', french: 'Pain', english: 'Bread', category: 'food', exampleFrench: 'J\'achète du pain à la boulangerie.', exampleEnglish: 'I buy bread at the bakery.' },
-        { id: '2', french: 'Fromage', english: 'Cheese', category: 'food', exampleFrench: 'La France est connue pour ses fromages.', exampleEnglish: 'France is known for its cheeses.' },
-        { id: '3', french: 'Pomme', english: 'Apple', category: 'food', exampleFrench: 'Je mange une pomme chaque jour.', exampleEnglish: 'I eat an apple every day.' },
-        { id: '4', french: 'Eau', english: 'Water', category: 'drinks', exampleFrench: 'Je voudrais un verre d\'eau, s\'il vous plaît.', exampleEnglish: 'I would like a glass of water, please.' },
-        { id: '5', french: 'Café', english: 'Coffee', category: 'drinks', exampleFrench: 'Je bois du café le matin.', exampleEnglish: 'I drink coffee in the morning.' },
-        { id: '6', french: 'Vin', english: 'Wine', category: 'drinks', exampleFrench: 'Le vin rouge est populaire en France.', exampleEnglish: 'Red wine is popular in France.' },
-        { id: '7', french: 'Soupe', english: 'Soup', category: 'food', exampleFrench: 'La soupe est chaude.', exampleEnglish: 'The soup is hot.' }
-      ],
-      animals: [
-        { id: '1', french: 'Chat', english: 'Cat', category: 'animals', exampleFrench: 'Le chat dort sur le canapé.', exampleEnglish: 'The cat is sleeping on the couch.' },
-        { id: '2', french: 'Chien', english: 'Dog', category: 'animals', exampleFrench: 'Mon chien aime jouer au parc.', exampleEnglish: 'My dog likes to play in the park.' },
-        { id: '3', french: 'Oiseau', english: 'Bird', category: 'animals', exampleFrench: 'L\'oiseau chante dans l\'arbre.', exampleEnglish: 'The bird is singing in the tree.' },
-        { id: '4', french: 'Poisson', english: 'Fish', category: 'animals', exampleFrench: 'Le poisson nage dans l\'aquarium.', exampleEnglish: 'The fish swims in the aquarium.' },
-        { id: '5', french: 'Lapin', english: 'Rabbit', category: 'animals', exampleFrench: 'Le lapin mange une carotte.', exampleEnglish: 'The rabbit is eating a carrot.' },
-        { id: '6', french: 'Cheval', english: 'Horse', category: 'animals', exampleFrench: 'Le cheval court dans le pré.', exampleEnglish: 'The horse is running in the meadow.' },
-        { id: '7', french: 'Vache', english: 'Cow', category: 'animals', exampleFrench: 'La vache donne du lait.', exampleEnglish: 'The cow gives milk.' }
-      ],
-      household: [
-        { id: '1', french: 'Maison', english: 'House', category: 'places', exampleFrench: 'Ma maison est près de la rivière.', exampleEnglish: 'My house is near the river.' },
-        { id: '2', french: 'Table', english: 'Table', category: 'furniture', exampleFrench: 'Le livre est sur la table.', exampleEnglish: 'The book is on the table.' },
-        { id: '3', french: 'Chaise', english: 'Chair', category: 'furniture', exampleFrench: 'Asseyez-vous sur la chaise, s\'il vous plaît.', exampleEnglish: 'Please sit on the chair.' },
-        { id: '4', french: 'Lit', english: 'Bed', category: 'furniture', exampleFrench: 'Je dors dans mon lit.', exampleEnglish: 'I sleep in my bed.' },
-        { id: '5', french: 'Fenêtre', english: 'Window', category: 'household', exampleFrench: 'Ouvrez la fenêtre, il fait chaud.', exampleEnglish: 'Open the window, it\'s hot.' },
-        { id: '6', french: 'Porte', english: 'Door', category: 'household', exampleFrench: 'Fermez la porte, s\'il vous plaît.', exampleEnglish: 'Close the door, please.' },
-        { id: '7', french: 'Cuisine', english: 'Kitchen', category: 'rooms', exampleFrench: 'Je prépare le dîner dans la cuisine.', exampleEnglish: 'I prepare dinner in the kitchen.' }
-      ],
-      travel: [
-        { id: '1', french: 'Valise', english: 'Suitcase', category: 'travel', exampleFrench: 'Ma valise est prête pour le voyage.', exampleEnglish: 'My suitcase is ready for the trip.' },
-        { id: '2', french: 'Passeport', english: 'Passport', category: 'travel', exampleFrench: 'N\'oubliez pas votre passeport!', exampleEnglish: 'Don\'t forget your passport!' },
-        { id: '3', french: 'Train', english: 'Train', category: 'transportation', exampleFrench: 'Le train arrive à la gare.', exampleEnglish: 'The train arrives at the station.' },
-        { id: '4', french: 'Avion', english: 'Airplane', category: 'transportation', exampleFrench: 'L\'avion décolle à huit heures.', exampleEnglish: 'The plane takes off at eight o\'clock.' },
-        { id: '5', french: 'Hôtel', english: 'Hotel', category: 'travel', exampleFrench: 'Nous restons dans un hôtel près de la plage.', exampleEnglish: 'We\'re staying at a hotel near the beach.' },
-        { id: '6', french: 'Billet', english: 'Ticket', category: 'travel', exampleFrench: 'Voici votre billet d\'avion.', exampleEnglish: 'Here is your plane ticket.' },
-        { id: '7', french: 'Voyage', english: 'Trip', category: 'travel', exampleFrench: 'Bon voyage!', exampleEnglish: 'Have a good trip!' }
-      ],
-      colors: [
-        { id: '1', french: 'Rouge', english: 'Red', category: 'colors', exampleFrench: 'J\'aime les pommes rouges.', exampleEnglish: 'I like red apples.' },
-        { id: '2', french: 'Bleu', english: 'Blue', category: 'colors', exampleFrench: 'Le ciel est bleu aujourd\'hui.', exampleEnglish: 'The sky is blue today.' },
-        { id: '3', french: 'Vert', english: 'Green', category: 'colors', exampleFrench: 'L\'herbe est verte.', exampleEnglish: 'The grass is green.' },
-        { id: '4', french: 'Jaune', english: 'Yellow', category: 'colors', exampleFrench: 'Le soleil est jaune.', exampleEnglish: 'The sun is yellow.' },
-        { id: '5', french: 'Noir', english: 'Black', category: 'colors', exampleFrench: 'Mon chat est noir.', exampleEnglish: 'My cat is black.' },
-        { id: '6', french: 'Blanc', english: 'White', category: 'colors', exampleFrench: 'La neige est blanche.', exampleEnglish: 'Snow is white.' },
-        { id: '7', french: 'Gris', english: 'Gray', category: 'colors', exampleFrench: 'Les nuages sont gris.', exampleEnglish: 'The clouds are gray.' }
-      ],
-      numbers: [
-        { id: '1', french: 'Un', english: 'One', category: 'numbers', exampleFrench: 'J\'ai un frère.', exampleEnglish: 'I have one brother.' },
-        { id: '2', french: 'Deux', english: 'Two', category: 'numbers', exampleFrench: 'Il y a deux livres sur la table.', exampleEnglish: 'There are two books on the table.' },
-        { id: '3', french: 'Trois', english: 'Three', category: 'numbers', exampleFrench: 'J\'ai trois chats.', exampleEnglish: 'I have three cats.' },
-        { id: '4', french: 'Quatre', english: 'Four', category: 'numbers', exampleFrench: 'La table a quatre pieds.', exampleEnglish: 'The table has four legs.' },
-        { id: '5', french: 'Cinq', english: 'Five', category: 'numbers', exampleFrench: 'J\'ai cinq doigts sur chaque main.', exampleEnglish: 'I have five fingers on each hand.' },
-        { id: '6', french: 'Dix', english: 'Ten', category: 'numbers', exampleFrench: 'Il y a dix personnes ici.', exampleEnglish: 'There are ten people here.' },
-        { id: '7', french: 'Cent', english: 'Hundred', category: 'numbers', exampleFrench: 'Le livre a cent pages.', exampleEnglish: 'The book has one hundred pages.' }
-      ]
-    };
-    
-    // Get fallback vocabulary set for today's theme
-    const vocab = fallbackSets[todayTheme] || fallbackSets.greetings;
-    
-    // Add placeholder images
-    return vocab.map(item => ({
-      ...item,
-      imageUrl: `https://via.placeholder.com/300x200?text=${encodeURIComponent(item.french)}`
-    }));
   };
 
   const initializeUserAnswers = (length) => {
@@ -174,42 +95,61 @@ const DailyQuickLearn = () => {
       await getWordDetails(vocabularySet[flashcardIndex]);
     }
     setIsFlipped(!isFlipped);
+    if (playSound) playSound('click');
   };
 
   const getWordDetails = async (word) => {
     try {
-      const response = await api.post('/api/ai/word-details', {
-        word: word.french,
-        english: word.english,
+      setIsLoadingWordDetails(true);
+      const response = await apiService.getWordDetails(
+        word.french, 
+        word.english, 
         userLevel
-      });
-      setCurrentWordDetails(response.data);
+      );
+      setCurrentWordDetails(response);
     } catch (error) {
       console.error('Error getting word details:', error);
+      // Set basic fallback details if API fails
+      setCurrentWordDetails({
+        definition: word.english,
+        exampleFrench: word.exampleFrench || `Exemple: ${word.french}.`,
+        exampleEnglish: word.exampleEnglish || `Example: ${word.english}.`,
+        tips: `Remember that "${word.french}" means "${word.english}" in French.`
+      });
+    } finally {
+      setIsLoadingWordDetails(false);
     }
   };
 
   const handleNextFlashcard = () => {
     if (playSound) playSound('click');
     setIsFlipped(false); // Reset card to front side
+    setCurrentWordDetails(null); // Clear current word details
+    
     if (flashcardIndex < vocabularySet.length - 1) {
       setFlashcardIndex(flashcardIndex + 1);
     } else {
+      // Move to quiz after going through all flashcards
       setCurrentStep('quiz');
+      // Initialize quiz
+      setQuizIndex(0);
+      setScore(0);
     }
   };
 
   const handlePrevFlashcard = () => {
     if (playSound) playSound('click');
     setIsFlipped(false); // Reset card to front side
+    setCurrentWordDetails(null); // Clear current word details
+    
     if (flashcardIndex > 0) {
       setFlashcardIndex(flashcardIndex - 1);
     }
   };
 
   const handleQuizAnswer = (answer) => {
+    // Play sound based on correct/incorrect
     if (playSound) {
-      // Play sound based on correct/incorrect
       if (answer === vocabularySet[quizIndex].french) {
         playSound('correct');
       } else {
@@ -217,18 +157,21 @@ const DailyQuickLearn = () => {
       }
     }
     
+    // Update user answers
     const newAnswers = [...userAnswers];
     newAnswers[quizIndex] = answer;
     setUserAnswers(newAnswers);
     
+    // Update score if answer is correct
     if (answer === vocabularySet[quizIndex].french) {
       setScore(score + 1);
     }
     
+    // Go to next question or complete the lesson
     if (quizIndex < vocabularySet.length - 1) {
-      setQuizIndex(quizIndex + 1);
+      setTimeout(() => setQuizIndex(quizIndex + 1), 800);
     } else {
-      completeLesson();
+      setTimeout(() => completeLesson(), 800);
     }
   };
 
@@ -280,7 +223,8 @@ const DailyQuickLearn = () => {
       payload: {
         activity: 'dailyQuickLearn',
         score: score,
-        maxScore: vocabularySet.length
+        maxScore: vocabularySet.length,
+        newWordsLearned: vocabularySet.length
       }
     });
     
@@ -294,6 +238,7 @@ const DailyQuickLearn = () => {
     setQuizIndex(0);
     setScore(0);
     setIsFlipped(false);
+    setCurrentWordDetails(null);
     initializeUserAnswers(vocabularySet.length);
     setCurrentStep('intro');
   };
@@ -344,9 +289,9 @@ const DailyQuickLearn = () => {
         className="flashcard-container h-64 relative my-6 cursor-pointer" 
         onClick={handleFlipCard}
       >
-        <div className={`h-full rounded-xl shadow-lg transition-transform duration-700 ${isFlipped ? 'rotate-y-180' : ''}`}>
+        <div className={`h-full rounded-xl shadow-lg transition-transform duration-700 transform ${isFlipped ? 'rotate-y-180' : ''}`} style={{ transformStyle: 'preserve-3d' }}>
           {/* Front side - French word */}
-          <div className="absolute w-full h-full rounded-xl flex flex-col items-center justify-center p-6 backface-hidden bg-red-100 border-2 border-red-300" 
+          <div className="absolute w-full h-full rounded-xl flex flex-col items-center justify-center p-6 bg-red-100 border-2 border-red-300" 
                style={{ backfaceVisibility: 'hidden', transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}>
             <span className="text-3xl font-bold text-slate-800 mb-2">{currentWord.french}</span>
             {currentWord.category && (
@@ -355,9 +300,15 @@ const DailyQuickLearn = () => {
           </div>
           
           {/* Back side - English translation & AI-generated content */}
-          <div className="absolute w-full h-full rounded-xl flex flex-col items-center justify-center p-6 backface-hidden bg-green-100 border-2 border-green-300 overflow-y-auto"
+          <div className="absolute w-full h-full rounded-xl flex flex-col items-center justify-center p-6 bg-green-100 border-2 border-green-300 overflow-y-auto"
                style={{ backfaceVisibility: 'hidden', transform: isFlipped ? 'rotateY(0deg)' : 'rotateY(-180deg)' }}>
-            {currentWordDetails && (
+            <span className="text-xl font-bold text-slate-800 mb-2">{currentWord.english}</span>
+            
+            {isLoadingWordDetails ? (
+              <div className="mt-2 flex justify-center">
+                <LoadingSpinner size="md" color="blue" />
+              </div>
+            ) : currentWordDetails ? (
               <div className="mt-2 text-center space-y-3">
                 <div className="text-sm">
                   <p className="font-semibold text-slate-700">Definition:</p>
@@ -374,6 +325,10 @@ const DailyQuickLearn = () => {
                     <p className="text-xs text-slate-600">{currentWordDetails.tips}</p>
                   </div>
                 )}
+              </div>
+            ) : (
+              <div className="mt-2 text-center">
+                <p className="italic text-slate-600">Tap to see details...</p>
               </div>
             )}
           </div>
