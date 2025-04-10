@@ -89,14 +89,29 @@ const QuizChallenge = () => {
       // Add this category to fetched categories to avoid repetition
       setFetchedCategories(prev => new Set([...prev, category]));
       
+      // Use timestamp and round number to ensure variety
+      const timestamp = Date.now();
+      
       // Use improved apiService to get quiz data
-      const quizData = await apiService.getQuizData(category, difficulty, 10);
+      const quizData = await apiService.getQuizData(
+        category, 
+        difficulty, 
+        10, 
+        timestamp, 
+        Array.from(fetchedCategories)  // Pass already used categories
+      );
       
       if (!quizData || quizData.length === 0) {
         throw new Error('No quiz questions returned');
       }
       
-      setQuestions(quizData);
+      // Ensure each question has a unique ID based on timestamp
+      const uniqueQuestions = quizData.map((q, index) => ({
+        ...q,
+        id: q.id || `question-${index}-${timestamp}`
+      }));
+      
+      setQuestions(uniqueQuestions);
       setCurrentQuestion(0);
       setScore(0);
       setStreak(0);
@@ -139,29 +154,16 @@ const QuizChallenge = () => {
     setSelectedAnswer(index);
     
     // Check if answer is correct
-    const currentQ = questions[currentQuestion];
-    const isAnswerCorrect = answer === currentQ.correctAnswer;
-    
+    const isAnswerCorrect = index === questions[currentQuestion].correctAnswer;
     setIsCorrect(isAnswerCorrect);
     
+    // Update score and streak
     if (isAnswerCorrect) {
-      // Calculate points based on time left
-      const timeBonus = Math.floor(timer * 100 / 15);
-      const questionPoints = 1000 + timeBonus;
-      
-      // Update score
-      setScore(prevScore => prevScore + questionPoints);
-      
-      // Update streak
-      setStreak(prevStreak => prevStreak + 1);
-      
-      // Play sound
+      setScore(prev => prev + Math.ceil((timer / 15) * 100));
+      setStreak(prev => prev + 1);
       if (playSound) playSound('correct');
     } else {
-      // Reset streak on wrong answer
       setStreak(0);
-      
-      // Play sound
       if (playSound) playSound('incorrect');
     }
     
@@ -201,7 +203,7 @@ const QuizChallenge = () => {
       payload: {
         activity: 'quizChallenge',
         score,
-        maxScore: questions.length * 1000
+        maxScore: questions.length * 100
       }
     });
     
@@ -243,13 +245,69 @@ const QuizChallenge = () => {
   
   // Get appropriate result message based on score
   const getResultMessage = () => {
-    const percentage = (score / (questions.length * 1000)) * 100;
+    const percentage = (score / (questions.length * 100)) * 100;
     
     if (percentage >= 90) return "Fantastique! You're a French master!";
     if (percentage >= 75) return "Très bien! You have strong French knowledge!";
     if (percentage >= 60) return "Bien! You're making good progress!";
     if (percentage >= 40) return "Pas mal! Keep practicing to improve!";
     return "Continuez à pratiquer! Don't give up, keep learning!";
+  };
+  
+  // Render quiz question
+  const renderQuestion = () => {
+    if (!questions[currentQuestion]) return null;
+
+    const { text, options, explanation, translation } = questions[currentQuestion];
+
+    return (
+      <div className="w-full max-w-2xl mx-auto p-4">
+        {/* Question text */}
+        <div className="mb-8 text-center">
+          <h3 className="text-xl font-bold text-slate-800 mb-2">{text}</h3>
+          {/* Add English translation if available */}
+          {translation && (
+            <p className="text-md text-slate-600 italic mb-4">
+              {translation}
+            </p>
+          )}
+        </div>
+
+        {/* Options grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {options.map((option, index) => (
+            <button
+              key={index}
+              onClick={() => handleAnswerSelect(option, index)}
+              disabled={selectedAnswer !== null || showFeedback}
+              className={`p-4 rounded-lg text-left transition-all duration-200 ${
+                showFeedback
+                  ? index === questions[currentQuestion].correctAnswer
+                    ? 'bg-green-100 border-2 border-green-500'
+                    : index === selectedAnswer
+                    ? 'bg-red-100 border-2 border-red-500'
+                    : 'bg-gray-100 border-2 border-transparent'
+                  : selectedAnswer === index
+                  ? 'bg-blue-100 border-2 border-blue-500'
+                  : 'bg-white border-2 border-gray-200 hover:border-blue-500'
+              }`}
+            >
+              <span className="block text-lg font-medium">{option}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Feedback */}
+        {showFeedback && (
+          <div className={`mt-6 p-4 rounded-lg ${isCorrect ? 'bg-green-100' : 'bg-red-100'}`}>
+            <p className="text-center font-medium mb-2">
+              {isCorrect ? '✅ Correct!' : '❌ Not quite right.'}
+            </p>
+            <p className="text-center text-sm">{explanation}</p>
+          </div>
+        )}
+      </div>
+    );
   };
   
   // Loading state
@@ -379,47 +437,8 @@ const QuizChallenge = () => {
             </div>
             
             {/* Answer Options */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {questions[currentQuestion].options.map((option, index) => (
-                <button
-                  key={index}
-                  onClick={() => handleAnswerSelect(option, index)}
-                  disabled={showFeedback}
-                  className={`p-4 rounded-lg text-white font-bold transition transform ${
-                    showFeedback 
-                      ? (option === questions[currentQuestion].correctAnswer 
-                          ? 'bg-green-500 scale-105'
-                          : selectedAnswer === index 
-                            ? 'bg-red-500 scale-105'
-                            : 'opacity-70') 
-                      : 'hover:scale-105'
-                  }`}
-                  style={{ 
-                    backgroundColor: showFeedback 
-                      ? (option === questions[currentQuestion].correctAnswer 
-                          ? '#4ade80' // green
-                          : selectedAnswer === index 
-                            ? '#ef4444' // red
-                            : getOptionColor(index)) 
-                      : getOptionColor(index)
-                  }}
-                >
-                  {option}
-                </button>
-              ))}
-            </div>
+            {renderQuestion()}
             
-            {/* Feedback */}
-            {showFeedback && (
-              <div className={`mt-6 p-4 rounded-lg ${isCorrect ? 'bg-green-100' : 'bg-red-100'}`}>
-                <p className={`font-bold ${isCorrect ? 'text-green-800' : 'text-red-800'}`}>
-                  {isCorrect ? '✓ Correct!' : '× Incorrect!'}
-                </p>
-                <p className="text-slate-700 mt-1">
-                  {questions[currentQuestion].explanation}
-                </p>
-              </div>
-            )}
           </div>
         </div>
       )}
@@ -445,12 +464,12 @@ const QuizChallenge = () => {
                 </div>
                 <div className="bg-white p-3 rounded-lg shadow">
                   <p className="text-2xl font-bold text-green-600">
-                    {Math.floor(score / 1000)}
+                    {Math.floor(score / 100)}
                   </p>
                   <p className="text-sm text-slate-600">Correct Answers</p>
                 </div>
                 <div className="bg-white p-3 rounded-lg shadow">
-                  <p className="text-2xl font-bold text-purple-600">{Math.floor(score / Math.max(1, Math.floor(score / 1000)))}</p>
+                  <p className="text-2xl font-bold text-purple-600">{Math.floor(score / Math.max(1, Math.floor(score / 100)))}</p>
                   <p className="text-sm text-slate-600">Avg. Points/Question</p>
                 </div>
               </div>

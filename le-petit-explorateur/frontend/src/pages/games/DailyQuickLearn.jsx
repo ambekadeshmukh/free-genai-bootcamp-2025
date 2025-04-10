@@ -27,6 +27,33 @@ const DailyQuickLearn = () => {
   const [isLoadingWordDetails, setIsLoadingWordDetails] = useState(false);
 
   useEffect(() => {
+    const loadDailyLesson = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        // First try to get from backend
+        const response = await apiService.getDailyLesson(userLevel);
+        if (response && response.vocabulary) {
+          setVocabularySet(response.vocabulary);
+        } else {
+          // If backend fails, use fallback data
+          const fallbackData = await apiService.getFallbackDailyLesson();
+          setVocabularySet(fallbackData.vocabulary);
+        }
+        
+        setLoading(false);
+      } catch (err) {
+        console.error('Error loading daily lesson:', err);
+        setError('Failed to load lesson. Please try refreshing the page.');
+        setLoading(false);
+      }
+    };
+
+    loadDailyLesson();
+  }, [userLevel]);
+
+  useEffect(() => {
     // Load user progress from localStorage
     const loadProgress = () => {
       try {
@@ -44,15 +71,15 @@ const DailyQuickLearn = () => {
             setCurrentStep('completed');
           } else {
             // Otherwise, load new vocabulary
-            loadVocabularySet();
+            // loadVocabularySet();
           }
         } else {
-          loadVocabularySet();
+          // loadVocabularySet();
         }
       } catch (error) {
         console.error('Error loading progress:', error);
         setError('Unable to load your progress. Local storage may be restricted.');
-        loadVocabularySet();
+        // loadVocabularySet();
       }
     };
     
@@ -89,13 +116,8 @@ const DailyQuickLearn = () => {
     setCurrentStep('flashcards');
   };
 
-  const handleFlipCard = async () => {
-    if (!isFlipped && !currentWordDetails) {
-      // Only fetch details when flipping to back for the first time
-      await getWordDetails(vocabularySet[flashcardIndex]);
-    }
+  const handleFlipCard = () => {
     setIsFlipped(!isFlipped);
-    if (playSound) playSound('click');
   };
 
   const getWordDetails = async (word) => {
@@ -122,10 +144,7 @@ const DailyQuickLearn = () => {
   };
 
   const handleNextFlashcard = () => {
-    if (playSound) playSound('click');
-    setIsFlipped(false); // Reset card to front side
-    setCurrentWordDetails(null); // Clear current word details
-    
+    setIsFlipped(false); // Reset flip state
     if (flashcardIndex < vocabularySet.length - 1) {
       setFlashcardIndex(flashcardIndex + 1);
     } else {
@@ -138,10 +157,7 @@ const DailyQuickLearn = () => {
   };
 
   const handlePrevFlashcard = () => {
-    if (playSound) playSound('click');
-    setIsFlipped(false); // Reset card to front side
-    setCurrentWordDetails(null); // Clear current word details
-    
+    setIsFlipped(false); // Reset flip state
     if (flashcardIndex > 0) {
       setFlashcardIndex(flashcardIndex - 1);
     }
@@ -285,57 +301,71 @@ const DailyQuickLearn = () => {
     const currentWord = vocabularySet[flashcardIndex];
     
     return (
-      <div 
-        className="flashcard-container h-64 relative my-6 cursor-pointer" 
-        onClick={handleFlipCard}
-      >
-        <div className={`h-full rounded-xl shadow-lg transition-transform duration-700 transform ${isFlipped ? 'rotate-y-180' : ''}`} style={{ transformStyle: 'preserve-3d' }}>
-          {/* Front side - French word */}
-          <div className="absolute w-full h-full rounded-xl flex flex-col items-center justify-center p-6 bg-red-100 border-2 border-red-300" 
-               style={{ backfaceVisibility: 'hidden', transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}>
-            <span className="text-3xl font-bold text-slate-800 mb-2">{currentWord.french}</span>
-            {currentWord.category && (
-              <span className="text-sm px-2 py-1 bg-red-200 rounded-full text-red-800">{currentWord.category}</span>
-            )}
-          </div>
-          
-          {/* Back side - English translation & AI-generated content */}
-          <div className="absolute w-full h-full rounded-xl flex flex-col items-center justify-center p-6 bg-green-100 border-2 border-green-300 overflow-y-auto"
-               style={{ backfaceVisibility: 'hidden', transform: isFlipped ? 'rotateY(0deg)' : 'rotateY(-180deg)' }}>
-            <span className="text-xl font-bold text-slate-800 mb-2">{currentWord.english}</span>
+      <div className="flex flex-col items-center">
+        <div 
+          className="flashcard-container h-64 relative my-6 cursor-pointer" 
+          onClick={handleFlipCard}
+        >
+          <div className={`h-full rounded-xl shadow-lg transition-transform duration-700 transform ${isFlipped ? 'rotate-y-180' : ''}`} 
+               style={{ transformStyle: 'preserve-3d' }}>
+            {/* Front side - French word */}
+            <div className="absolute w-full h-full rounded-xl flex flex-col items-center justify-center p-6 bg-red-100 border-2 border-red-300" 
+                 style={{ backfaceVisibility: 'hidden' }}>
+              <span className="text-3xl font-bold text-slate-800 mb-2">{currentWord.french}</span>
+              {currentWord.category && (
+                <span className="text-sm px-2 py-1 bg-red-200 rounded-full text-red-800">{currentWord.category}</span>
+              )}
+            </div>
             
-            {isLoadingWordDetails ? (
-              <div className="mt-2 flex justify-center">
-                <LoadingSpinner size="md" color="blue" />
-              </div>
-            ) : currentWordDetails ? (
-              <div className="mt-2 text-center space-y-3">
-                <div className="text-sm">
-                  <p className="font-semibold text-slate-700">Definition:</p>
-                  <p className="italic text-slate-600">{currentWordDetails.definition}</p>
+            {/* Back side - English translation & AI-generated content */}
+            <div className="absolute w-full h-full rounded-xl flex flex-col items-center justify-center p-6 bg-green-100 border-2 border-green-300 overflow-y-auto"
+                 style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}>
+              <span className="text-xl font-bold text-slate-800 mb-2">{currentWord.english}</span>
+              
+              {isLoadingWordDetails ? (
+                <div className="mt-2 flex justify-center">
+                  <LoadingSpinner size="md" color="blue" />
                 </div>
-                <div className="text-sm">
-                  <p className="font-semibold text-slate-700">Example:</p>
-                  <p className="italic text-slate-600">{currentWordDetails.exampleFrench}</p>
-                  <p className="text-xs text-slate-500">{currentWordDetails.exampleEnglish}</p>
-                </div>
-                {currentWordDetails.tips && (
+              ) : currentWordDetails ? (
+                <div className="mt-2 text-center space-y-3">
                   <div className="text-sm">
-                    <p className="font-semibold text-slate-700">Tips:</p>
-                    <p className="text-xs text-slate-600">{currentWordDetails.tips}</p>
+                    <p className="font-semibold text-slate-700">Definition:</p>
+                    <p className="italic text-slate-600">{currentWordDetails.definition}</p>
                   </div>
-                )}
-              </div>
-            ) : (
-              <div className="mt-2 text-center">
-                <p className="italic text-slate-600">Tap to see details...</p>
-              </div>
-            )}
+                  <div className="text-sm">
+                    <p className="font-semibold text-slate-700">Example:</p>
+                    <p className="italic text-slate-600">{currentWordDetails.exampleFrench}</p>
+                    <p className="text-xs text-slate-500">{currentWordDetails.exampleEnglish}</p>
+                  </div>
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
+        {/* Manual flip button */}
+        <button
+          onClick={handleFlipCard}
+          className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+        >
+          {isFlipped ? 'Show French' : 'Show English'}
+        </button>
       </div>
     );
   };
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-4">
+        <div className="text-red-500 mb-4">{error}</div>
+        <button 
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   if (loading) {
     return <Loading message="Loading today's lesson..." size="12" />;

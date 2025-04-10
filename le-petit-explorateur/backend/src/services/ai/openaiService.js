@@ -329,4 +329,38 @@ exports.generateCulturalContext = async ({ vocabulary, theme, difficulty }) => {
   }
 };
 
-module.exports = exports;
+/**
+ * Generate image using DALL-E 3
+ * @param {string} prompt - Text prompt for image generation
+ * @returns {Promise<string>} Generated image URL
+ */
+async function generateImage(prompt) {
+    try {
+        const response = await openai.images.generate({
+            model: "dall-e-3",
+            prompt: prompt,
+            n: 1,
+            size: "1024x1024",
+            quality: "standard",
+            style: "natural"
+        });
+
+        if (response.data && response.data[0]) {
+            return response.data[0].url;
+        }
+        throw new Error('No image generated');
+    } catch (error) {
+        logger.error(`OpenAI image generation error: ${error.message}`);
+        throw new Error(`OpenAI image generation error: ${error.message}`);
+    }
+}
+
+// Export all functions
+module.exports = {
+    openai,
+    generateContent: exports.generateContent,
+    generateChatResponse: exports.generateChatResponse,
+    generateQuizQuestions: exports.generateQuizQuestions,
+    generateCulturalContext: exports.generateCulturalContext,
+    generateImage
+};

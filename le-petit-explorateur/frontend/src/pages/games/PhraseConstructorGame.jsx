@@ -47,25 +47,30 @@ const PhraseConstructorGame = () => {
     setIsCheckingAnswer(false);
     
     try {
-      // Request a phrase that hasn't been used yet
-      const sentenceData = await apiService.getPhraseConstructorData(difficulty, sentenceCategory);
+      // Add timestamp to ensure we get fresh data
+      const timestamp = Date.now();
       
-      // Ensure the sentence hasn't been used yet
+      // Request a phrase with round number to get variety
+      const sentenceData = await apiService.getPhraseConstructorData(
+        difficulty, 
+        sentenceCategory,
+        timestamp,
+        round,  // Pass the round number
+        completedSentences  // Pass already used sentences
+      );
+      
+      // Check if we've seen this sentence before
       if (completedSentences.includes(sentenceData.french)) {
-        // If we've seen this sentence before, try a different category
-        const unusedCategories = categories
-          .filter(c => c.id !== sentenceCategory)
-          .map(c => c.id);
-        
-        if (unusedCategories.length > 0) {
-          // Try a random different category
-          const randomCategory = unusedCategories[Math.floor(Math.random() * unusedCategories.length)];
-          const newSentenceData = await apiService.getPhraseConstructorData(difficulty, randomCategory);
-          processSentence(newSentenceData);
-        } else {
-          // If we've exhausted all categories, use the original sentence
-          processSentence(sentenceData);
-        }
+        console.log('This sentence was already used, trying to get another one...');
+        // Try with a different timestamp
+        const newSentenceData = await apiService.getPhraseConstructorData(
+          difficulty, 
+          sentenceCategory,
+          timestamp + 1000,
+          round,
+          completedSentences
+        );
+        processSentence(newSentenceData);
       } else {
         processSentence(sentenceData);
       }
@@ -73,9 +78,30 @@ const PhraseConstructorGame = () => {
       console.error('Error fetching sentence:', error);
       setError('Failed to load sentence. Using fallback data instead.');
       
-      // Use fallback sentence if API fails
-      processSentence(getFallbackSentence());
+      // Use fallback sentence with variety based on round number
+      processSentence(getFallbackSentence(round));
     }
+  };
+
+  const getFallbackSentence = (roundNumber) => {
+    // Fallback sentences by category and difficulty with more variety
+    const fallbacks = {
+      greetings: [
+        { french: 'Bonjour comment allez-vous', english: 'Hello how are you', words: ['Bonjour', 'comment', 'allez', 'vous'], hint: 'A common greeting' },
+        { french: 'Enchanté de faire votre connaissance', english: 'Pleased to meet you', words: ['Enchanté', 'de', 'faire', 'votre', 'connaissance'], hint: 'When meeting someone new' },
+        { french: 'Au revoir à bientôt', english: 'Goodbye see you soon', words: ['Au', 'revoir', 'à', 'bientôt'], hint: 'When leaving' },
+        { french: 'Bonne journée à vous', english: 'Have a good day', words: ['Bonne', 'journée', 'à', 'vous'], hint: 'Wishing someone well' },
+        { french: 'Comment vous sentez-vous aujourd\'hui', english: 'How do you feel today', words: ['Comment', 'vous', 'sentez', 'vous', 'aujourd\'hui'], hint: 'Asking about wellbeing' }
+      ],
+      // More categories...
+    };
+    
+    // Get sentences for this category or default to greetings
+    const categorySentences = fallbacks[sentenceCategory] || fallbacks.greetings;
+    
+    // Pick based on round number to ensure variety
+    const index = (roundNumber - 1) % categorySentences.length;
+    return categorySentences[index];
   };
 
   const processSentence = (sentenceData) => {
@@ -120,39 +146,6 @@ const PhraseConstructorGame = () => {
     setConstructedSentence([]);
     setFeedback(null);
     setLoading(false);
-  };
-
-  const getFallbackSentence = () => {
-    // Fallback sentences by category and difficulty
-    const fallbacks = {
-      greetings: {
-        beginner: { 
-          french: 'Bonjour comment allez-vous', 
-          english: 'Hello how are you', 
-          words: ['Bonjour', 'comment', 'allez', 'vous'], 
-          hint: 'A common greeting' 
-        },
-        intermediate: { 
-          french: 'Enchanté de faire votre connaissance', 
-          english: 'Pleased to meet you', 
-          words: ['Enchanté', 'de', 'faire', 'votre', 'connaissance'], 
-          hint: 'When meeting someone new' 
-        },
-        advanced: { 
-          french: 'Je vous souhaite une excellente journée', 
-          english: 'I wish you an excellent day', 
-          words: ['Je', 'vous', 'souhaite', 'une', 'excellente', 'journée'], 
-          hint: 'A polite farewell' 
-        }
-      },
-      // More fallback sentences here...
-    };
-    
-    // Default to greetings if category doesn't exist
-    const categoryFallbacks = fallbacks[sentenceCategory] || fallbacks.greetings;
-    
-    // Default to beginner if difficulty doesn't exist
-    return categoryFallbacks[difficulty] || categoryFallbacks.beginner;
   };
 
   const handleWordClick = (word, source) => {

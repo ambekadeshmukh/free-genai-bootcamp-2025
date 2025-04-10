@@ -7,14 +7,15 @@ const Header = () => {
   const location = useLocation();
   
   // Navigation items - simplified to only what's needed
-  const navItems = [
-    { path: '/', label: 'Home' },
-    { path: '/games/word-lineup', label: 'Word Lineup' },
-    { path: '/games/phrase-constructor', label: 'Phrase Builder' },
-    { path: '/games/daily-quick-learn', label: 'Daily Learn' },
-    { path: '/games/quiz-challenge', label: 'Quiz Challenge' },
-    { path: '/ai-language-buddy', label: 'AI Buddy' }
-  ];
+
+const navItems = [
+  { path: '/', label: 'Home' },
+  { path: '/games/image-word-match', label: 'Image Word Match' }, // Changed from Word Lineup
+  { path: '/games/phrase-constructor', label: 'Phrase Builder' },
+  { path: '/games/daily-quick-learn', label: 'Daily Learn' },
+  { path: '/games/quiz-challenge', label: 'Quiz Challenge' },
+  { path: '/ai-language-buddy', label: 'AI Buddy' }
+];
   
   return (
     <header className="bg-slate-900 text-white">

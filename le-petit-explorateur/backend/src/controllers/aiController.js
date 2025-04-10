@@ -1,6 +1,7 @@
 const { OpenAI } = require('openai');
 const axios = require('axios');
 const logger = require('../utils/logger');
+const openaiService = require('../services/ai/openaiService');
 
 // Initialize OpenAI with API key
 const openai = new OpenAI({
@@ -13,10 +14,10 @@ const fallbackVocabulary = require('../data/fallbackVocabulary');
 const fallbackPhrases = require('../data/fallbackPhrases');
 const fallbackQuizzes = require('../data/fallbackQuizzes');
 
-// Helper function to verify API key
+// Verify API key is available
 const verifyApiKey = () => {
   if (!process.env.OPENAI_API_KEY) {
-    throw new Error('OpenAI API key is not configured');
+    throw new Error('OpenAI API key not configured');
   }
 };
 
@@ -170,41 +171,20 @@ const aiController = {
   generateImage: async (req, res) => {
     try {
       verifyApiKey();
-      const { prompt, style = 'educational', size = 'medium' } = req.body;
+      const { prompt } = req.body;
       
-      // Enhance prompt with style guidance
-      const enhancedPrompt = `${prompt}. Style: ${style}, educational, clear, suitable for language learning.`;
+      // Generate image using OpenAI
+      const imageUrl = await openaiService.generateImage(prompt);
       
-      // Map size to dimensions
-      const dimensions = {
-        'small': { width: 256, height: 256 },
-        'medium': { width: 512, height: 512 },
-        'large': { width: 1024, height: 1024 }
-      }[size] || { width: 512, height: 512 };
+      if (!imageUrl) {
+        throw new Error('Failed to generate image');
+      }
       
-      // Call DALL-E API
-      const response = await openai.images.generate({
-        model: "dall-e-3",
-        prompt: enhancedPrompt,
-        n: 1,
-        size: `${dimensions.width}x${dimensions.height}`
-      });
-      
-      // Get image URL from response
-      const imageUrl = response.data[0].url;
-      
-      // Download the image to convert to base64
-      const imageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer' });
-      const imageData = Buffer.from(imageResponse.data).toString('base64');
-      
-      logger.info('Successfully generated image');
-
       res.status(200).json({
-        imageData: `data:image/png;base64,${imageData}`,
+        success: true,
+        imageUrl,
         metadata: {
-          prompt: enhancedPrompt,
-          style,
-          size,
+          prompt,
           generatedAt: new Date().toISOString()
         }
       });
@@ -217,12 +197,12 @@ const aiController = {
       
       // Return a placeholder image
       res.status(200).json({
-        imageData: `https://via.placeholder.com/400x300?text=${encodeURIComponent(req.body.prompt || 'Image')}`,
+        success: false,
+        imageUrl: `https://via.placeholder.com/1024x1024?text=${encodeURIComponent(req.body.prompt || 'Image')}`,
         isPlaceholder: true,
         metadata: {
           prompt: req.body.prompt,
-          style: req.body.style,
-          size: req.body.size,
+          error: error.message,
           generatedAt: new Date().toISOString()
         }
       });

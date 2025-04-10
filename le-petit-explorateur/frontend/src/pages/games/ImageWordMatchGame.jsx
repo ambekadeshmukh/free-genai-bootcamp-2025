@@ -31,64 +31,80 @@ const ImageWordMatchGame = () => {
     { id: 'numbers', name: 'Numbers' }
   ];
 
-  useEffect(() => {
-    if (gameState === 'playing') {
-      prepareGame();
-    }
-  }, [gameState, difficulty, category]);
-
-  // Prepare game rounds
-  const prepareGame = async () => {
-    setLoading(true);
-    setError(null);
-    
+  // Load game data
+  const loadGameData = async () => {
     try {
-      // Get word data from API
-      const response = await apiService.getImageWordMatchData(difficulty, category);
+      setLoading(true);
+      setError(null);
       
-      if (!response || !response.words || response.words.length < 4) {
-        throw new Error('Not enough words returned from API');
+      const data = await apiService.getImageWordMatchData(difficulty, category);
+      if (!data || !data.words || !data.words.length) {
+        throw new Error('Failed to load game data');
       }
       
-      // Prepare game rounds
-      const allRounds = [];
-      const words = response.words;
-      
-      // Create different round types with roughly equal distribution
-      for (let i = 0; i < totalRounds; i++) {
-        if (i % 2 === 0) {
-          // Word-to-Image round: Select correct image that matches a French word
-          allRounds.push(createWordToImageRound(words, i));
-        } else {
-          // Image-to-Word round: Select correct French word that matches an image
-          allRounds.push(createImageToWordRound(words, i));
+      // Create rounds with both word-to-image and image-to-word
+      const gameRounds = data.words.flatMap(word => ([
+        {
+          type: 'word-to-image',
+          word: word.french,
+          translation: word.english,
+          image: word.image,
+          options: generateOptions(data.words, word, 'image')
+        },
+        {
+          type: 'image-to-word',
+          word: word.french,
+          translation: word.english,
+          image: word.image,
+          options: generateOptions(data.words, word, 'word')
         }
-      }
+      ]));
       
-      setRounds(allRounds);
-      setCurrentRound(0);
-      setScore(0);
-      setSelectedOption(null);
-      setIsCorrect(null);
-    } catch (error) {
-      console.error('Error preparing game:', error);
-      setError('Failed to prepare game data. Please try a different category or difficulty.');
-    } finally {
+      // Shuffle and limit rounds
+      const shuffledRounds = shuffleArray(gameRounds).slice(0, totalRounds);
+      setRounds(shuffledRounds);
+      setLoading(false);
+    } catch (err) {
+      console.error('Error loading game data:', err);
+      setError('Failed to load game. Please try refreshing the page.');
       setLoading(false);
     }
   };
 
-  // Create a word-to-image round
-  const createWordToImageRound = (words, index) => {
-    // Select a random word as the correct answer
-    const correctIndex = Math.floor(Math.random() * words.length);
+  useEffect(() => {
+    if (gameState === 'playing') {
+      loadGameData();
+    }
+  }, [gameState, difficulty, category]);
+
+  // Helper function to get random options
+  const getRandomOptions = (words, correctWord, count, timestamp) => {
+    const options = [correctWord];
+    const usedIndexes = new Set([words.indexOf(correctWord)]);
+    
+    while (options.length < count && options.length < words.length) {
+      const randomIndex = (timestamp + options.length) % words.length;
+      if (!usedIndexes.has(randomIndex)) {
+        usedIndexes.add(randomIndex);
+        options.push(words[randomIndex]);
+      }
+    }
+    
+    // Shuffle options using timestamp for consistency
+    return options
+      .sort((a, b) => ((a.french.charCodeAt(0) + timestamp) % 100) - ((b.french.charCodeAt(0) + timestamp) % 100));
+  };
+
+  const createWordToImageRound = (words, index, timestamp = Date.now()) => {
+    // Select a random word as the correct answer, but make it deterministic based on index
+    const correctIndex = (index + timestamp) % words.length;
     const correctWord = words[correctIndex];
     
     // Create image options (including the correct one)
-    const imageOptions = getRandomOptions(words, correctWord, 4);
+    const imageOptions = getRandomOptions(words, correctWord, 4, timestamp + index);
     
     return {
-      id: `round-${index + 1}`,
+      id: `round-${index + 1}-${timestamp}`,
       type: 'word-to-image',
       question: correctWord.french,
       questionTranslation: correctWord.english,
@@ -97,42 +113,41 @@ const ImageWordMatchGame = () => {
     };
   };
 
-  // Create an image-to-word round
-  const createImageToWordRound = (words, index) => {
+  const createImageToWordRound = (words, index, timestamp = Date.now()) => {
     // Select a random word as the correct answer
-    const correctIndex = Math.floor(Math.random() * words.length);
+    const correctIndex = (index + timestamp + 1) % words.length;
     const correctWord = words[correctIndex];
     
     // Create word options (including the correct one)
-    const wordOptions = getRandomOptions(words, correctWord, 4);
+    const wordOptions = getRandomOptions(words, correctWord, 4, timestamp + index);
     
     return {
-      id: `round-${index + 1}`,
+      id: `round-${index + 1}-${timestamp}`,
       type: 'image-to-word',
       question: correctWord.imageUrl,
-      questionWord: correctWord,
-      options: wordOptions,
+      questionWord: correctWord.french,
+      options: wordOptions.map(w => ({ id: w.id, text: w.french, translation: w.english })),
       correctOption: correctWord.id
     };
   };
 
-  // Get random options including the correct answer
-  const getRandomOptions = (words, correctAnswer, count) => {
-    const options = [correctAnswer];
-    
-    // Add random incorrect options
-    while (options.length < count) {
-      const randomIndex = Math.floor(Math.random() * words.length);
-      const randomWord = words[randomIndex];
-      
-      if (!options.some(option => option.id === randomWord.id)) {
-        options.push(randomWord);
-      }
-    }
-    
-    // Shuffle options
-    return options.sort(() => 0.5 - Math.random());
-  };
+  // Error display component
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-4">
+        <div className="text-red-500 mb-4">{error}</div>
+        <button 
+          onClick={() => {
+            setError(null);
+            loadGameData();
+          }}
+          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   // Handle option selection
   const handleSelectOption = (optionId) => {
@@ -219,12 +234,6 @@ const ImageWordMatchGame = () => {
         <h1 className="text-3xl font-bold mb-2 text-slate-800">Image Word Match</h1>
         <p className="text-lg text-slate-600">Match French words with their corresponding images</p>
       </div>
-
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          <p>{error}</p>
-        </div>
-      )}
 
       {gameState === 'intro' && (
         <div className="bg-white rounded-lg shadow-lg p-6">
@@ -364,8 +373,8 @@ const ImageWordMatchGame = () => {
                           : 'bg-blue-50 text-blue-800 border border-blue-300 hover:bg-blue-100'
                       }`}
                     >
-                      <div className="font-bold text-lg">{option.french}</div>
-                      <div className="text-sm">{option.english}</div>
+                      <div className="font-bold text-lg">{option.text}</div>
+                      <div className="text-sm">{option.translation}</div>
                     </button>
                   ))}
                 </div>
@@ -380,7 +389,7 @@ const ImageWordMatchGame = () => {
                 <p className="text-slate-700 mt-1">
                   {isCorrect 
                     ? 'Great job! You selected the correct match.' 
-                    : `The correct answer was: ${rounds[currentRound].options.find(o => o.id === rounds[currentRound].correctOption).french}`}
+                    : `The correct answer was: ${rounds[currentRound].options.find(o => o.id === rounds[currentRound].correctOption).text}`}
                 </p>
               </div>
             )}
