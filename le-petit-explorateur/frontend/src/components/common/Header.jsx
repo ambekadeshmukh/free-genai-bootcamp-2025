@@ -10,7 +10,7 @@ const Header = () => {
 
 const navItems = [
   { path: '/', label: 'Home' },
-  { path: '/games/image-word-match', label: 'Image Word Match' }, // Changed from Word Lineup
+  { path: '/games/french-hangman', label: 'French Hangman' },
   { path: '/games/phrase-constructor', label: 'Phrase Builder' },
   { path: '/games/daily-quick-learn', label: 'Daily Learn' },
   { path: '/games/quiz-challenge', label: 'Quiz Challenge' },

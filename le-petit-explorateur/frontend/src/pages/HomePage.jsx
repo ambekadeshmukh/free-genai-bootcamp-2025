@@ -60,7 +60,7 @@ const HomePage = () => {
       beginner: {
         title: 'French Essentials',
         description: 'Master basic greetings, introductions, and everyday phrases',
-        activities: ['dailyQuickLearn', 'imageWordMatch', 'phraseConstructor', 'quizChallenge']
+        activities: ['dailyQuickLearn', 'frenchHangman', 'phraseConstructor', 'quizChallenge']
       },
       intermediate: {
         title: 'Conversation Builder',
@@ -70,7 +70,7 @@ const HomePage = () => {
       advanced: {
         title: 'Cultural Immersion',
         description: 'Deepen your understanding of French language and culture',
-        activities: ['aiLanguageBuddy', 'quizChallenge', 'phraseConstructor', 'dailyQuickLearn']
+        activities: ['aiLanguageBuddy', 'quizChallenge', 'frenchHangman', 'dailyQuickLearn']
       }
     };
     
@@ -187,10 +187,10 @@ const HomePage = () => {
           onClick={handleActivityClick}
         />
         <ActivityCard 
-          title="Image Word Match"
-          description="Match French words with their corresponding images"
-          icon="🔤"
-          link="/games/image-word-match"
+          title="French Hangman"
+          description="Guess French words letter by letter before you run out of chances"
+          icon="�"
+          link="/games/french-hangman"
           backgroundColor={colors.blue + '60'}
           onClick={handleActivityClick}
         />
@@ -315,11 +315,11 @@ function getActivityInfo(activity) {
       icon: '📚',
       color: '#FFF4A3' + '60'
     },
-    imageWordMatch: {
-      name: 'Image Word Match',
-      path: '/games/image-word-match',
-      icon: '🔤',
-      color: '#FF8B8B' + '60'
+    frenchHangman: {
+      name: 'French Hangman',
+      path: '/games/french-hangman',
+      icon: '�',
+      color: '#87CEEB' + '60'
     },
     phraseConstructor: {
       name: 'Phrase Constructor',
@@ -331,7 +331,7 @@ function getActivityInfo(activity) {
       name: 'Quiz Challenge',
       path: '/games/quiz-challenge',
       icon: '🎮',
-      color: '#87CEEB' + '60'
+      color: '#FF8B8B' + '60'
     },
     aiLanguageBuddy: {
       name: 'AI Language Buddy',

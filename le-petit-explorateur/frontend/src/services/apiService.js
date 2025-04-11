@@ -945,7 +945,88 @@ Format your response as a JSON array of questions. Make sure the questions are d
         ]
       };
     }
-  }
+  },
+  
+  /**
+   * Get French words for the Hangman game with AI integration
+   * @param {string} category - Word category
+   * @param {string} difficulty - Difficulty level
+   * @returns {Promise<Object>} Hangman word data
+   */
+  async getHangmanWords(category = 'animals', difficulty = 'beginner') {
+    try {
+      console.log(`Fetching Hangman words for category: ${category}, difficulty: ${difficulty}`);
+      
+      // Try to use backend first
+      try {
+        const response = await api.get(`/ai/hangman-words?category=${category}&difficulty=${difficulty}`);
+        if (response.data && response.data.words && response.data.words.length > 0) {
+          return response.data;
+        }
+      } catch (backendError) {
+        console.warn('Backend hangman words fetch failed, trying direct OpenAI:', backendError.message);
+      }
+      
+      // Direct OpenAI call if backend fails
+      console.log("Using direct OpenAI connection for hangman words");
+      
+      // Create a timestamp to ensure uniqueness in requests
+      const timestamp = Date.now();
+      
+      // Add specific requirements based on difficulty
+      let wordLengthConstraint = "";
+      if (difficulty === "beginner") {
+        wordLengthConstraint = "Keep words simple with 3-6 letters";
+      } else if (difficulty === "intermediate") {
+        wordLengthConstraint = "Choose words with 5-8 letters with moderate complexity";
+      } else {
+        wordLengthConstraint = "Include challenging words with 7-12 letters that may include accents or hyphens";
+      }
+      
+      const result = await openai.post('/chat/completions', {
+        model: "gpt-3.5-turbo",
+        messages: [
+          {
+            role: "system",
+            content: "You're a French language teacher generating vocabulary lists for a hangman game."
+          },
+          {
+            role: "user",
+            content: `Generate 10 French words for a Hangman game about "${category}" at ${difficulty} level. ${wordLengthConstraint}. Do not include words that are identical in English and French (like 'normal' or 'radio').
+
+For each word provide:
+1. french: The word in lowercase French
+2. english: The English translation
+3. hint: A helpful clue (without mentioning the word itself)
+
+Format your response as a JSON object with a 'words' array containing these fields.`
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 1000,
+        response_format: { type: "json_object" }
+      });
+      
+      const content = JSON.parse(result.data.choices[0].message.content);
+      
+      if (content && content.words && content.words.length > 0) {
+        // Add timestamps to words to ensure uniqueness
+        content.words = content.words.map((word, index) => ({
+          ...word,
+          id: `hangman-${index}-${timestamp}`
+        }));
+        
+        return content;
+      }
+      
+      throw new Error('Invalid response format from OpenAI');
+    } catch (error) {
+      console.error('Error getting hangman words:', error);
+      
+      // For fallback, we'll use hardcoded words in the component
+      throw error;
+    }
+  },
 };
 
 export default apiService;

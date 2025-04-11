@@ -6,7 +6,7 @@ import { AIProvider } from './contexts/AIContext';
 
 // Pages
 import HomePage from './pages/HomePage';
-import ImageWordMatchGame from './pages/games/ImageWordMatchGame';
+import FrenchHangmanGame from './pages/games/FrenchHangmanGame';
 import PhraseConstructorGame from './pages/games/PhraseConstructorGame';
 import DailyQuickLearn from './pages/games/DailyQuickLearn';
 import AILanguageBuddy from './pages/games/AILanguageBuddy';
@@ -76,7 +76,7 @@ function App() {
               <main className="flex-grow flex items-center justify-center p-4">
                 <Routes>
                   <Route path="/" element={<HomePage />} />
-                  <Route path="/games/image-word-match" element={<ImageWordMatchGame />} />
+                  <Route path="/games/french-hangman" element={<FrenchHangmanGame />} />
                   <Route path="/games/phrase-constructor" element={<PhraseConstructorGame />} />
                   <Route path="/games/daily-quick-learn" element={<DailyQuickLearn />} />
                   <Route path="/games/quiz-challenge" element={<QuizChallenge />} />
