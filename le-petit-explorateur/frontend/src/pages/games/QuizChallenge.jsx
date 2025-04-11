@@ -4,6 +4,7 @@ import { useChalkboard } from '../../contexts/ChalkboardContext';
 import apiService from '../../services/apiService';
 import Loading from '../../components/common/Loading';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
+import ErrorMessage from '../../components/common/ErrorMessage';
 
 const QuizChallenge = () => {
   const { updateProgress } = useProgress();
@@ -49,7 +50,7 @@ const QuizChallenge = () => {
         clearInterval(timerRef.current);
       }
     };
-  }, [gameState, category, difficulty]);
+  }, [gameState]);
   
   // Timer effect
   useEffect(() => {
@@ -89,7 +90,7 @@ const QuizChallenge = () => {
       // Add this category to fetched categories to avoid repetition
       setFetchedCategories(prev => new Set([...prev, category]));
       
-      // Use timestamp and round number to ensure variety
+      // Use timestamp and a unique key to ensure variety
       const timestamp = Date.now();
       
       // Use improved apiService to get quiz data
@@ -98,20 +99,16 @@ const QuizChallenge = () => {
         difficulty, 
         10, 
         timestamp, 
-        Array.from(fetchedCategories)  // Pass already used categories
+        Array.from(fetchedCategories)
       );
       
       if (!quizData || quizData.length === 0) {
         throw new Error('No quiz questions returned');
       }
       
-      // Ensure each question has a unique ID based on timestamp
-      const uniqueQuestions = quizData.map((q, index) => ({
-        ...q,
-        id: q.id || `question-${index}-${timestamp}`
-      }));
+      console.log('Received quiz data:', quizData);
       
-      setQuestions(uniqueQuestions);
+      setQuestions(quizData);
       setCurrentQuestion(0);
       setScore(0);
       setStreak(0);
@@ -237,12 +234,6 @@ const QuizChallenge = () => {
     setCategory(e.target.value);
   };
   
-  // Get appropriate color for each option button
-  const getOptionColor = (index) => {
-    const colors = ['#FF8B8B', '#87CEEB', '#ABEBC6', '#FFF4A3'];
-    return colors[index % colors.length];
-  };
-  
   // Get appropriate result message based on score
   const getResultMessage = () => {
     const percentage = (score / (questions.length * 100)) * 100;
@@ -257,22 +248,21 @@ const QuizChallenge = () => {
   // Render quiz question
   const renderQuestion = () => {
     if (!questions[currentQuestion]) return null;
-
-    const { text, options, explanation, translation } = questions[currentQuestion];
-
+  
+    const { text, translation, options, explanation } = questions[currentQuestion];
+  
     return (
       <div className="w-full max-w-2xl mx-auto p-4">
-        {/* Question text */}
-        <div className="mb-8 text-center">
+        {/* Question text in French */}
+        <div className="mb-3 text-center">
           <h3 className="text-xl font-bold text-slate-800 mb-2">{text}</h3>
-          {/* Add English translation if available */}
-          {translation && (
-            <p className="text-md text-slate-600 italic mb-4">
-              {translation}
-            </p>
-          )}
         </div>
-
+        
+        {/* Translation in English */}
+        <div className="mb-5 text-center">
+          <p className="text-md text-slate-600 italic">{translation}</p>
+        </div>
+  
         {/* Options grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {options.map((option, index) => (
@@ -296,7 +286,7 @@ const QuizChallenge = () => {
             </button>
           ))}
         </div>
-
+  
         {/* Feedback */}
         {showFeedback && (
           <div className={`mt-6 p-4 rounded-lg ${isCorrect ? 'bg-green-100' : 'bg-red-100'}`}>
@@ -323,9 +313,7 @@ const QuizChallenge = () => {
       </div>
 
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          <p>{error}</p>
-        </div>
+        <ErrorMessage message={error} />
       )}
 
       {gameState === 'intro' && (
@@ -417,26 +405,7 @@ const QuizChallenge = () => {
               ></div>
             </div>
             
-            {/* Question */}
-            <div className="mb-6">
-              <h2 className="text-xl font-bold text-slate-800 mb-4">{questions[currentQuestion].text}</h2>
-              
-              {questions[currentQuestion].imageUrl && (
-                <div className="flex justify-center mb-4">
-                  <img 
-                    src={questions[currentQuestion].imageUrl} 
-                    alt="Question"
-                    className="max-h-48 rounded-lg"
-                    onError={(e) => {
-                      e.target.onerror = null;
-                      e.target.src = `https://via.placeholder.com/400x300?text=Question+Image`;
-                    }}
-                  />
-                </div>
-              )}
-            </div>
-            
-            {/* Answer Options */}
+            {/* Question content */}
             {renderQuestion()}
             
           </div>

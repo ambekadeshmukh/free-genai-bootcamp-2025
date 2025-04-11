@@ -13,7 +13,7 @@ const api = axios.create({
   }
 });
 
-// Direct API connections for when backend is down or not working
+// Direct API connections for when backend is down or not available
 const openai = axios.create({
   baseURL: 'https://api.openai.com/v1',
   timeout: 60000,
@@ -23,87 +23,64 @@ const openai = axios.create({
   }
 });
 
-const huggingface = axios.create({
-  baseURL: 'https://api-inference.huggingface.co/models',
-  timeout: 60000,
-  headers: {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${process.env.REACT_APP_HUGGINGFACE_API_KEY || ''}`
-  }
-});
-
-const cohere = axios.create({
-  baseURL: 'https://api.cohere.ai/v1',
-  timeout: 60000,
-  headers: {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${process.env.REACT_APP_COHERE_API_KEY || ''}`
-  }
-});
-
-// Add interceptor for error handling and retries
+// Interceptor for handling errors
 api.interceptors.response.use(
   response => response,
   async error => {
-    const originalRequest = error.config;
-    
-    console.error('API Error Details:', {
-      endpoint: error.config?.url,
+    // Log detailed error info for debugging
+    console.error('API Error:', {
+      url: error.config?.url,
       method: error.config?.method,
       status: error.response?.status,
-      message: error.message,
-      data: error.response?.data
+      message: error.message
     });
     
-    if (
-      originalRequest._retry || 
-      (error.response && error.response.status >= 400 && error.response.status < 500 && error.response.status !== 429)
-    ) {
+    // If we already retried or it's a client error (except rate limiting), reject
+    if (error.config._retry || 
+        (error.response && error.response.status >= 400 && 
+         error.response.status < 500 && error.response.status !== 429)) {
       return Promise.reject(error);
     }
     
-    if (
-      !error.response || 
-      error.code === 'ECONNABORTED' || 
-      (error.response && error.response.status >= 500)
-    ) {
-      originalRequest._retry = true;
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      return api(originalRequest);
+    // For server errors or timeouts, retry once
+    if (!error.response || error.code === 'ECONNABORTED' || 
+        (error.response && error.response.status >= 500)) {
+      error.config._retry = true;
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      return api(error.config);
     }
     
     return Promise.reject(error);
   }
 );
 
-/**
- * API Service for Le Petit Explorateur
- */
 const apiService = {
   /**
-   * Get daily lesson vocabulary using OpenAI
+   * Get daily lesson vocabulary using OpenAI with date parameter
+   * @param {string} userLevel - User's level (beginner, intermediate, advanced)
+   * @param {string} date - Date for the lesson (YYYY-MM-DD format)
    * @returns {Promise<Array>} Daily vocabulary
    */
-  getDailyLesson: async () => {
+  async getDailyLesson(userLevel = 'beginner', date = new Date().toISOString().split('T')[0]) {
     try {
       // Try to use the backend first
       const response = await api.get('/ai/daily-lesson');
-      if (response.data && Array.isArray(response.data)) {
-        return response.data;
+      if (response.data && (Array.isArray(response.data) || response.data.vocabulary)) {
+        return Array.isArray(response.data) ? response.data : response.data.vocabulary;
       }
       
       // If backend fails, use direct OpenAI connection
-      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      console.log("Backend daily lesson fetch failed, using direct OpenAI connection");
       const result = await openai.post('/chat/completions', {
         model: "gpt-3.5-turbo",
         messages: [
           {
             role: "system",
-            content: "You are a French language teacher creating daily vocabulary lessons. Respond with exactly 7 French vocabulary words with their English translations, examples, and categories."
+            content: "You are a French language teacher creating daily vocabulary lessons. Respond with exactly 7 useful French vocabulary words with their English translations, examples, and categories."
           },
           {
             role: "user",
-            content: `Generate 7 useful French vocabulary words for a beginner's daily lesson dated ${today}. Each entry should have the French word, English translation, category, and example sentence in both French and English. Format as JSON array.`
+            content: `Generate 7 useful French vocabulary words for a ${userLevel}'s daily lesson dated ${date}. Each entry should have: french (the French word), english (the English translation), category, exampleFrench (example sentence in French), and exampleEnglish (translation of the example). Make sure to use the date ${date} to generate different words than other days. Format as a JSON array.`
           }
         ],
         temperature: 0.7,
@@ -113,19 +90,112 @@ const apiService = {
       
       // Parse and format the response
       const content = JSON.parse(result.data.choices[0].message.content);
-      const vocabulary = content.words || content.vocabulary || [];
+      let vocabulary = Array.isArray(content) ? content : 
+                     (content.words || content.vocabulary || []);
       
-      // Add IDs and placeholder images
-      const vocabularyWithIds = vocabulary.map((word, index) => ({
-        ...word,
-        id: `daily-${index + 1}`,
-        imageUrl: generateWordPlaceholder(word.french, word.english)
+      // Add IDs and ensure consistent format
+      const formattedVocabulary = vocabulary.map((word, index) => ({
+        id: `daily-${index + 1}-${Date.now()}`,
+        french: word.french,
+        english: word.english,
+        category: word.category || 'general',
+        exampleFrench: word.exampleFrench || `${word.french} est un mot français.`,
+        exampleEnglish: word.exampleEnglish || `${word.french} is a French word.`
       }));
       
-      return vocabularyWithIds;
+      return formattedVocabulary;
     } catch (error) {
       console.error('Error getting daily lesson:', error);
-      return getFallbackDailyLesson();
+      throw error;
+    }
+  },
+
+  /**
+   * Get phrase constructor data using AI with round parameter
+   * @param {string} difficulty - Difficulty level
+   * @param {string} category - Phrase category
+   * @param {number} timestamp - Timestamp to ensure unique requests
+   * @param {number} round - Current round number
+   * @param {Array} usedPhrases - Previously used phrases
+   * @returns {Promise<Object>} Phrase data
+   */
+  async getPhraseConstructorData(difficulty = 'beginner', category = 'greetings', timestamp = Date.now(), round = 1, usedPhrases = []) {
+    try {
+      // Try to get data from backend
+      const response = await api.get(`/ai/phrase-constructor/${difficulty}?category=${category}&round=${round}`);
+      if (response.data && (response.data.french || response.data.frenchPhrase)) {
+        // Normalize response data
+        const normalizedData = {
+          id: `phrase-${round}-${Date.now()}`,
+          french: response.data.french || response.data.frenchPhrase || '',
+          english: response.data.english || response.data.englishTranslation || '',
+          words: response.data.words || [],
+          hint: response.data.hint || response.data.context || '',
+        };
+        
+        // Check if this is a duplicate phrase
+        if (usedPhrases.includes(normalizedData.french)) {
+          throw new Error('Duplicate phrase detected, will generate new one');
+        }
+        
+        return normalizedData;
+      }
+      
+      // If backend fails, use direct OpenAI connection
+      console.log("Backend phrase data fetch failed, using direct OpenAI connection");
+      
+      // Add round information to ensure we get different phrases
+      const promptPrefix = round > 1 ? 
+        `For round ${round}, create a NEW French phrase (different from previous rounds) ` :
+        `Create a French phrase `;
+      
+      const result = await openai.post('/chat/completions', {
+        model: "gpt-3.5-turbo",
+        messages: [
+          {
+            role: "system",
+            content: "You are a French language teacher creating phrase construction exercises. Return valid JSON with exactly the fields requested."
+          },
+          {
+            role: "user",
+            content: `${promptPrefix}for ${difficulty} level learners related to the category "${category}". 
+            
+Already used phrases: ${usedPhrases.join(", ")}
+
+Return a JSON object with these exact fields:
+- id: a unique identifier string
+- french: the complete French phrase (without punctuation marks for easier construction)
+- english: the English translation
+- words: an array of strings, each string being one word needed to construct the French phrase in the correct order
+- hint: a short hint about the context or usage of this phrase`
+          }
+        ],
+        temperature: 0.8, // Higher temperature for more variety
+        max_tokens: 500,
+        response_format: { type: "json_object" }
+      });
+      
+      // Parse and normalize the response
+      const aiResponse = JSON.parse(result.data.choices[0].message.content);
+      
+      const normalizedData = {
+        id: aiResponse.id || `phrase-${round}-${Date.now()}`,
+        french: aiResponse.french || '',
+        english: aiResponse.english || '',
+        words: aiResponse.words || [],
+        hint: aiResponse.hint || '',
+      };
+      
+      // Check if this is a duplicate phrase
+      if (usedPhrases.includes(normalizedData.french)) {
+        // Try again with a different approach
+        return apiService.getPhraseConstructorData(difficulty, category, timestamp + 1000, round, usedPhrases);
+      }
+      
+      return normalizedData;
+    } catch (error) {
+      console.error('Error getting phrase constructor data:', error);
+      throw error;
     }
   },
   
@@ -133,10 +203,10 @@ const apiService = {
    * Get word details using OpenAI to enhance flashcards
    * @param {string} word - French word
    * @param {string} english - English translation
-   * @param {string} userLevel - User's level
+   * @param {string} userLevel - User's level (beginner, intermediate, advanced)
    * @returns {Promise<Object>} Word details
    */
-  getWordDetails: async (word, english, userLevel = 'beginner') => {
+  async getWordDetails(word, english, userLevel = 'beginner') {
     try {
       // Try backend first
       const response = await api.post('/ai/word-details', { word, english, userLevel });
@@ -145,6 +215,7 @@ const apiService = {
       }
       
       // If backend fails, use direct OpenAI connection
+      console.log("Backend word details fetch failed, using direct OpenAI connection");
       const result = await openai.post('/chat/completions', {
         model: "gpt-3.5-turbo",
         messages: [
@@ -154,7 +225,7 @@ const apiService = {
           },
           {
             role: "user",
-            content: `Provide detailed information about the French word "${word}" (English: "${english}") for a ${userLevel} level student. Include: 1) A clear definition in simple terms, 2) An example sentence using the word (provide both French and English), 3) Any helpful tips for remembering or using the word correctly. Format your response as JSON.`
+            content: `Provide detailed information about the French word "${word}" (English: "${english}") for a ${userLevel} level student.\n\nFormat your response as a JSON object with these exact fields:\n- definition: a simple, clear definition\n- exampleFrench: an example sentence in French using the word\n- exampleEnglish: the English translation of the example\n- tips: a helpful tip for remembering or using the word`
           }
         ],
         temperature: 0.7,
@@ -162,145 +233,486 @@ const apiService = {
         response_format: { type: "json_object" }
       });
       
-      const details = JSON.parse(result.data.choices[0].message.content);
-      return details;
+      return JSON.parse(result.data.choices[0].message.content);
     } catch (error) {
       console.error('Error getting word details:', error);
       // Return fallback details
       return {
-        definition: english,
-        exampleFrench: `C'est un exemple avec le mot "${word}".`,
-        exampleEnglish: `This is an example with the word "${word}".`,
-        tips: `Remember that "${word}" means "${english}" in French.`
+        definition: `${english} (Basic translation)`,
+        exampleFrench: `${word} est un mot français important.`,
+        exampleEnglish: `${word} is an important French word.`,
+        tips: `Try to use "${word}" in simple sentences to practice.`
       };
     }
   },
   
   /**
-   * Generate image word match data with categories
+   * Generate image for vocabulary word using DALL-E with improved error handling
+   * @param {string} word - French word
+   * @param {string} english - English translation
+   * @returns {Promise<string>} Image URL
+   */
+  async generateWordImage(word, english) {
+    try {
+      console.log(`Generating image for ${word} (${english})`);
+      
+      // First try to use the backend service
+      try {
+        const response = await api.post('/ai/generate-image', {
+          word,
+          english,
+          language: 'french'
+        }, { 
+          timeout: 15000 // 15 second timeout for backend request
+        });
+        
+        if (response.data && response.data.imageUrl) {
+          console.log(`Successfully received image from backend for ${word}`);
+          return response.data.imageUrl;
+        }
+      } catch (backendError) {
+        console.warn('Backend image generation failed, trying direct OpenAI:', backendError.message);
+        // Continue to OpenAI direct call
+      }
+      
+      // Direct OpenAI call as fallback
+      const response = await openai.post('/images/generations', {
+        model: "dall-e-3",
+        prompt: `A simple, clear educational illustration of the French word "${word}" (${english}). Create a simple, iconic image suitable for language learning that clearly represents the word's meaning. The image should be easy to understand with clean lines and minimal background elements. Use bright, engaging colors appropriate for educational content.`,
+        n: 1,
+        size: "1024x1024", // This is the only size supported by DALL-E 3
+        quality: "standard",
+        style: "natural"
+      });
+
+      if (response.data && response.data.data && response.data.data[0]) {
+        console.log(`Successfully generated image for ${word}`);
+        return response.data.data[0].url;
+      }
+      throw new Error('No image data in response');
+    } catch (error) {
+      console.error(`Error generating image for ${word}:`, error);
+      // Try to use a stock image API as alternative
+      try {
+        // This is a placeholder for a stock image API call
+        // You would replace this with an actual implementation
+        return await apiService.getStockImage(word, english);
+      } catch (stockError) {
+        console.error('Stock image API failed:', stockError);
+        // Generate a placeholder SVG as final fallback
+        return apiService.generatePlaceholder(word, english);
+      }
+    }
+  },
+
+  /**
+   * Try to get a stock image for a word (placeholder implementation)
+   * In a real application, you would integrate with a stock photo API
+   * @param {string} word - French word
+   * @param {string} english - English translation
+   * @returns {Promise<string>} Image URL
+   */
+  async getStockImage(word, english) {
+    // This is a placeholder function
+    // In a real implementation, you would call a stock image API
+    
+    // For now, just simulate an API call with a timeout
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        // Simulate 50% success rate
+        if (Math.random() > 0.5) {
+          // Reject to test the fallback
+          reject(new Error('Stock image API failed'));
+        } else {
+          // Return a placeholder URL
+          // In a real implementation, this would be a URL from the stock image API
+          resolve(`https://placehold.co/400x300?text=${encodeURIComponent(english)}`);
+        }
+      }, 500);
+    });
+  },
+
+  /**
+   * Generate image word match data with categories and improved fallbacks
    * @param {string} difficulty - Difficulty level
    * @param {string} category - Word category
    * @returns {Promise<Object>} Game data
    */
-  getImageWordMatchData: async (difficulty = 'beginner', category = 'general') => {
+  async getImageWordMatchData(difficulty = 'beginner', category = 'general') {
     try {
       // Try to get the data from backend
-      const response = await api.get(`/ai/word-lineup/${difficulty}?category=${category}`);
-      if (response.data && response.data.words) {
-        // Add images to existing words if they don't have them
-        const wordsWithImages = await Promise.all(response.data.words.map(async word => ({
-          ...word,
-          imageUrl: word.imageUrl || await generateWordImage(word.french, word.english) || generateWordPlaceholder(word.french, word.english, Date.now())
-        })));
-        return { words: wordsWithImages };
-      }
-      
-      // Generate new words with OpenAI if backend fails
-      const result = await openai.post('/chat/completions', {
-        model: "gpt-3.5-turbo",
-        messages: [
-          {
-            role: "system",
-            content: "You are a French language teaching assistant creating content for an image-word matching game."
-          },
-          {
-            role: "user",
-            content: `Generate 10 unique French vocabulary words with their English translations for the category "${category}" at ${difficulty} level. Choose simple, concrete nouns that can be easily represented by images. For each word, provide: the French word, the English translation, and a category. Format as JSON array.`
-          }
-        ],
-        temperature: 0.8,
-        max_tokens: 1000,
-        response_format: { type: "json_object" }
+      const response = await api.get(`/ai/word-lineup/${difficulty}?category=${category}`, {
+        timeout: 10000 // 10 second timeout
       });
       
-      // Process the response
-      const content = JSON.parse(result.data.choices[0].message.content);
-      const words = content.words || content;
+      if (response.data && response.data.words && response.data.words.length > 0) {
+        const words = response.data.words;
+        
+        // Process words in parallel batches for better performance
+        const BATCH_SIZE = 3;
+        const wordBatches = [];
+        
+        for (let i = 0; i < words.length; i += BATCH_SIZE) {
+          wordBatches.push(words.slice(i, i + BATCH_SIZE));
+        }
+        
+        // Process each batch
+        for (let batch of wordBatches) {
+          await Promise.all(batch.map(async (word) => {
+            if (!word.imageUrl) {
+              try {
+                word.imageUrl = await apiService.generateWordImage(word.french, word.english);
+              } catch (imageError) {
+                console.error(`Failed to generate image for ${word.french}, using placeholder`);
+                word.imageUrl = apiService.generatePlaceholder(word.french, word.english);
+              }
+            }
+          }));
+        }
+        
+        return { words };
+      }
       
-      // Format with unique IDs and generate images
-      const formattedWords = await Promise.all(words.map(async (word, index) => {
-        const imageUrl = await generateWordImage(word.french, word.english);
-        return {
-          id: `word-${index + 1}-${Date.now()}`,
-          french: word.french,
-          english: word.english,
-          category: word.category || category,
-          imageUrl: imageUrl || generateWordPlaceholder(word.french, word.english, Date.now())
-        };
-      }));
-      
-      return { words: formattedWords };
+      throw new Error('Invalid or empty response from backend');
     } catch (error) {
-      console.error('Error getting image word match data:', error);
-      return getFallbackImageWordMatchData(difficulty, category);
+      console.error('Error getting image word match data from backend:', error);
+      
+      // Generate new words with OpenAI as fallback
+      try {
+        console.log("Backend image word match data fetch failed, using direct OpenAI connection");
+        const result = await openai.post('/chat/completions', {
+          model: "gpt-3.5-turbo",
+          messages: [
+            {
+              role: "system",
+              content: "You are a French language teaching assistant creating content for an image-word matching game."
+            },
+            {
+              role: "user",
+              content: `Generate 8 concrete, easily visualizable French vocabulary words for the category "${category}" at ${difficulty} level. For each word, provide: the French word, the English translation, and the category. Choose words that can be clearly represented by images (like animals, objects, foods, etc.). Format as a JSON array.`
+            }
+          ],
+          temperature: 0.7,
+          max_tokens: 1000,
+          response_format: { type: "json_object" }
+        });
+        
+        // Process the response
+        const content = JSON.parse(result.data.choices[0].message.content);
+        let words = Array.isArray(content) ? content : 
+                   (content.words || content.vocabulary || []);
+        
+        // Format with unique IDs and generate images in batches
+        const formattedWords = [];
+        const BATCH_SIZE = 3;
+        const wordBatches = [];
+        
+        for (let i = 0; i < words.length; i++) {
+          const word = words[i];
+          formattedWords.push({
+            id: `word-${i + 1}-${Date.now()}`,
+            french: word.french,
+            english: word.english,
+            category: word.category || category
+          });
+        }
+        
+        for (let i = 0; i < formattedWords.length; i += BATCH_SIZE) {
+          wordBatches.push(formattedWords.slice(i, i + BATCH_SIZE));
+        }
+        
+        // Process each batch
+        for (let batch of wordBatches) {
+          await Promise.all(batch.map(async (word) => {
+            try {
+              word.imageUrl = await apiService.generateWordImage(word.french, word.english);
+            } catch (imageError) {
+              console.error(`Failed to generate image for ${word.french}, using placeholder`);
+              word.imageUrl = apiService.generatePlaceholder(word.french, word.english);
+            }
+          }));
+        }
+        
+        return { words: formattedWords };
+      } catch (openaiError) {
+        console.error('OpenAI word generation failed, using hardcoded fallback:', openaiError);
+        
+        // Final fallback to hardcoded category-specific vocabulary
+        const fallbackVocabulary = {
+          animals: [
+            { id: 'a1', french: 'chat', english: 'cat' },
+            { id: 'a2', french: 'chien', english: 'dog' },
+            { id: 'a3', french: 'oiseau', english: 'bird' },
+            { id: 'a4', french: 'poisson', english: 'fish' },
+            { id: 'a5', french: 'lapin', english: 'rabbit' }
+          ],
+          food: [
+            { id: 'f1', french: 'pain', english: 'bread' },
+            { id: 'f2', french: 'fromage', english: 'cheese' },
+            { id: 'f3', french: 'pomme', english: 'apple' },
+            { id: 'f4', french: 'eau', english: 'water' },
+            { id: 'f5', french: 'café', english: 'coffee' }
+          ],
+          household: [
+            { id: 'h1', french: 'table', english: 'table' },
+            { id: 'h2', french: 'chaise', english: 'chair' },
+            { id: 'h3', french: 'lit', english: 'bed' },
+            { id: 'h4', french: 'lampe', english: 'lamp' },
+            { id: 'h5', french: 'porte', english: 'door' }
+          ],
+          colors: [
+            { id: 'c1', french: 'rouge', english: 'red' },
+            { id: 'c2', french: 'bleu', english: 'blue' },
+            { id: 'c3', french: 'vert', english: 'green' },
+            { id: 'c4', french: 'jaune', english: 'yellow' },
+            { id: 'c5', french: 'noir', english: 'black' }
+          ],
+          places: [
+            { id: 'p1', french: 'maison', english: 'house' },
+            { id: 'p2', french: 'école', english: 'school' },
+            { id: 'p3', french: 'parc', english: 'park' },
+            { id: 'p4', french: 'hôpital', english: 'hospital' },
+            { id: 'p5', french: 'restaurant', english: 'restaurant' }
+          ]
+        };
+        
+        // Use category-specific vocabulary or default to animals
+        const words = fallbackVocabulary[category] || fallbackVocabulary.animals;
+        
+        // Add placeholder images
+        for (let word of words) {
+          word.imageUrl = apiService.generatePlaceholder(word.french, word.english);
+        }
+        
+        return { words };
+      }
     }
   },
-  
+
+  /**
+   * Generate a placeholder SVG for failed image loads
+   * @param {string} word - The French word
+   * @param {string} english - English translation
+   * @returns {string} Data URL for SVG image
+   */
+  generatePlaceholder(word, english) {
+    // Choose a color based on the first character of the word
+    const colorMap = {
+      'a': '#FFD6A5', 'b': '#FFADAD', 'c': '#CAFFBF', 'd': '#9BF6FF',
+      'e': '#BDB2FF', 'f': '#FFC6FF', 'g': '#FDFFB6', 'h': '#A0C4FF',
+      'i': '#FFD6A5', 'j': '#FFADAD', 'k': '#CAFFBF', 'l': '#9BF6FF',
+      'm': '#BDB2FF', 'n': '#FFC6FF', 'o': '#FDFFB6', 'p': '#A0C4FF',
+      'q': '#FFD6A5', 'r': '#FFADAD', 's': '#CAFFBF', 't': '#9BF6FF',
+      'u': '#BDB2FF', 'v': '#FFC6FF', 'w': '#FDFFB6', 'x': '#A0C4FF',
+      'y': '#BDB2FF', 'z': '#FFC6FF'
+    };
+    
+    const firstChar = word.charAt(0).toLowerCase();
+    const bgColor = colorMap[firstChar] || '#F8F9FA';
+    
+    // Get appropriate icon based on category
+    let svgIcon = '';
+    const lowerEnglish = english.toLowerCase();
+    
+    if (/cat|dog|bird|animal|fish|pet|rabbit|mouse|pig|hen|duck/.test(lowerEnglish)) {
+      // Animal icon
+      svgIcon = `<circle cx="125" cy="75" r="30" fill="#333333"/>
+                 <path d="M90,115 C90,90 160,90 160,115 C160,150 90,150 90,115" fill="#333333"/>`;
+    } else if (/bread|cheese|apple|water|coffee|food|fruit|wine|soup|chicken/.test(lowerEnglish)) {
+      // Food icon
+      svgIcon = `<circle cx="125" cy="80" r="35" fill="#333333"/>
+                 <rect x="115" y="115" width="20" height="40" fill="#333333"/>`;
+    } else if (/table|chair|bed|lamp|door|window|rug|mirror|clock|television|furniture/.test(lowerEnglish)) {
+      // Household item
+      svgIcon = `<rect x="75" y="60" width="100" height="80" fill="#333333"/>
+                 <rect x="105" y="140" width="40" height="30" fill="#333333"/>`;
+    } else if (/red|blue|green|yellow|black|white|gray|orange|purple|pink|color/.test(lowerEnglish)) {
+      // Color swatch
+      svgIcon = `<rect x="75" y="60" width="100" height="100" fill="#333333"/>`;
+    } else {
+      // Default place icon
+      svgIcon = `<path d="M125,50 L175,100 L150,100 L150,150 L100,150 L100,100 L75,100 Z" fill="#333333"/>`;
+    }
+    
+    // Create SVG with word and translation
+    const svgContent = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="250" height="250" viewBox="0 0 250 250">
+      <rect width="100%" height="100%" fill="${bgColor}"/>
+      ${svgIcon}
+      <text x="125" y="200" font-family="Arial, sans-serif" font-size="28" text-anchor="middle" font-weight="bold" fill="#333333">${word}</text>
+      <text x="125" y="225" font-family="Arial, sans-serif" font-size="18" text-anchor="middle" fill="#666666">${english}</text>
+    </svg>
+    `;
+    
+    try {
+      return `data:image/svg+xml;base64,${btoa(svgContent)}`;
+    } catch (e) {
+      console.error('SVG encoding error:', e);
+      // Fallback to simpler SVG if encoding fails
+      const simpleSvg = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="250" height="250" viewBox="0 0 250 250">
+        <rect width="100%" height="100%" fill="${bgColor}"/>
+        <text x="125" y="125" font-family="Arial, sans-serif" font-size="28" text-anchor="middle" font-weight="bold" fill="#333333">${word}</text>
+      </svg>
+      `;
+      return `data:image/svg+xml;base64,${btoa(simpleSvg)}`;
+    }
+  },
+
   /**
    * Get phrase constructor data using AI
    * @param {string} difficulty - Difficulty level
    * @param {string} category - Phrase category
+   * @param {number} timestamp - Timestamp to ensure unique requests
+   * @param {number} round - Current round number
+   * @param {Array} usedPhrases - Previously used phrases
    * @returns {Promise<Object>} Phrase data
    */
-  getPhraseConstructorData: async (difficulty = 'beginner', category = 'greetings') => {
+  async getPhraseConstructorData(difficulty = 'beginner', category = 'greetings', timestamp = Date.now(), round = 1, usedPhrases = []) {
     try {
       // Try to get data from backend
-      const response = await api.get(`/ai/phrase-constructor/${difficulty}?category=${category}`);
-      if (response.data) {
+      const response = await api.get(`/ai/phrase-constructor/${difficulty}?category=${category}&round=${round}`);
+      if (response.data && (response.data.french || response.data.frenchPhrase)) {
         // Normalize response data
         const normalizedData = {
-          frenchPhrase: response.data.frenchPhrase || response.data.french || '',
-          englishTranslation: response.data.englishTranslation || response.data.english || '',
+          id: `phrase-${round}-${Date.now()}`,
+          french: response.data.french || response.data.frenchPhrase || '',
+          english: response.data.english || response.data.englishTranslation || '',
           words: response.data.words || [],
           hint: response.data.hint || response.data.context || '',
-          id: `phrase-${Date.now()}`
         };
         
-        // Validate required fields
-        if (!normalizedData.frenchPhrase || !normalizedData.englishTranslation || !normalizedData.words.length) {
-          throw new Error('Invalid phrase data format');
+        // Check if this is a duplicate phrase
+        if (usedPhrases.includes(normalizedData.french)) {
+          throw new Error('Duplicate phrase detected, will generate new one');
         }
         
         return normalizedData;
       }
       
       // If backend fails, use direct OpenAI connection
+      console.log("Backend phrase data fetch failed, using direct OpenAI connection");
+      
+      // Add round information to ensure we get different phrases
+      const promptPrefix = round > 1 ? 
+        `For round ${round}, create a NEW French phrase (different from previous rounds) ` :
+        `Create a French phrase `;
+      
       const result = await openai.post('/chat/completions', {
         model: "gpt-3.5-turbo",
         messages: [
           {
             role: "system",
-            content: "You are a French language teacher creating phrase construction exercises. Return only valid JSON."
+            content: "You are a French language teacher creating phrase construction exercises. Return valid JSON with exactly the fields requested."
           },
           {
             role: "user",
-            content: `Create a French phrase for ${difficulty} level learners related to the category "${category}". Return a JSON object with these exact keys: frenchPhrase (string), englishTranslation (string), words (array of strings), hint (string). The words array should contain all words needed to construct the French phrase in the correct order.`
+            content: `${promptPrefix}for ${difficulty} level learners related to the category "${category}". 
+            
+Already used phrases: ${usedPhrases.join(", ")}
+
+Return a JSON object with these exact fields:
+- id: a unique identifier string
+- french: the complete French phrase (without punctuation marks for easier construction)
+- english: the English translation
+- words: an array of strings, each string being one word needed to construct the French phrase in the correct order
+- hint: a short hint about the context or usage of this phrase`
           }
         ],
-        temperature: 0.7,
-        max_tokens: 400,
+        temperature: 0.8, // Slightly higher temperature for more variety
+        max_tokens: 500,
         response_format: { type: "json_object" }
       });
       
       // Parse and normalize the response
       const aiResponse = JSON.parse(result.data.choices[0].message.content);
+      
       const normalizedData = {
-        frenchPhrase: aiResponse.frenchPhrase,
-        englishTranslation: aiResponse.englishTranslation,
-        words: aiResponse.words,
-        hint: aiResponse.hint,
-        id: `phrase-${Date.now()}`
+        id: aiResponse.id || `phrase-${round}-${Date.now()}`,
+        french: aiResponse.french || '',
+        english: aiResponse.english || '',
+        words: aiResponse.words || [],
+        hint: aiResponse.hint || '',
       };
       
-      // Validate required fields
-      if (!normalizedData.frenchPhrase || !normalizedData.englishTranslation || !normalizedData.words.length) {
-        throw new Error('Invalid AI response format');
+      // Check if this is a duplicate phrase
+      if (usedPhrases.includes(normalizedData.french)) {
+        // Try again with a different timestamp
+        return apiService.getPhraseConstructorData(difficulty, category, Date.now() + 1000, round, usedPhrases);
       }
       
       return normalizedData;
     } catch (error) {
       console.error('Error getting phrase constructor data:', error);
-      return getFallbackPhraseData(difficulty, category);
+      
+      // If we got an error due to duplicate, try again with a different approach
+      if (error.message && error.message.includes('Duplicate phrase')) {
+        // Try a direct call to OpenAI with a stronger instruction to get a different phrase
+        const categoryPrompts = {
+          greetings: ["greeting someone", "saying goodbye", "introducing yourself", "welcoming someone"],
+          questions: ["asking for information", "asking about time", "asking for directions", "asking about preferences"],
+          food: ["ordering at a restaurant", "discussing food preferences", "talking about ingredients", "planning a meal"],
+          travel: ["asking for directions", "booking accommodations", "taking public transportation", "discussing travel plans"],
+          daily: ["describing daily routines", "talking about the weather", "discussing plans", "expressing opinions"]
+        };
+        
+        // Get a varied prompt based on round number
+        const categoryVariations = categoryPrompts[category] || ["basic conversation"];
+        const variation = categoryVariations[round % categoryVariations.length] || category;
+        
+        try {
+          const emergencyResult = await openai.post('/chat/completions', {
+            model: "gpt-3.5-turbo",
+            messages: [
+              {
+                role: "system",
+                content: "Create a unique French language phrase that hasn't been used before."
+              },
+              {
+                role: "user",
+                content: `Create a UNIQUE French phrase for ${difficulty} level about ${variation}. 
+                Make sure it's different from: ${usedPhrases.join(", ")}
+                
+                Return a JSON with:
+                - french: the phrase in French (no punctuation)
+                - english: English translation
+                - words: array of individual words
+                - hint: short context hint`
+              }
+            ],
+            temperature: 1.0, // High temperature for maximum variation
+            max_tokens: 500,
+            response_format: { type: "json_object" }
+          });
+          
+          const emergencyResponse = JSON.parse(emergencyResult.data.choices[0].message.content);
+          return {
+            id: `phrase-emergency-${round}-${Date.now()}`,
+            french: emergencyResponse.french || '',
+            english: emergencyResponse.english || '',
+            words: emergencyResponse.words || [],
+            hint: emergencyResponse.hint || '',
+          };
+        } catch (emergencyError) {
+          console.error('Emergency phrase generation failed:', emergencyError);
+        }
+      }
+      
+      // Last resort fallback
+      const fallbackPhrases = [
+        { french: "Bonjour comment allez vous", english: "Hello how are you", words: ["Bonjour", "comment", "allez", "vous"], hint: "Greeting someone formally" },
+        { french: "Je voudrais un café", english: "I would like a coffee", words: ["Je", "voudrais", "un", "café"], hint: "Ordering at a café" },
+        { french: "Où est la gare", english: "Where is the train station", words: ["Où", "est", "la", "gare"], hint: "Asking for directions" },
+        { french: "Je m'appelle Jean", english: "My name is Jean", words: ["Je", "m'appelle", "Jean"], hint: "Introducing yourself" },
+        { french: "Il fait beau aujourd'hui", english: "The weather is nice today", words: ["Il", "fait", "beau", "aujourd'hui"], hint: "Talking about weather" }
+      ];
+      
+      // Choose a fallback phrase based on round number to ensure variation
+      const fallbackIndex = (round - 1) % fallbackPhrases.length;
+      return {
+        id: `phrase-fallback-${round}-${Date.now()}`,
+        ...fallbackPhrases[fallbackIndex]
+      };
     }
   },
   
@@ -309,9 +721,11 @@ const apiService = {
    * @param {string} category - Quiz category
    * @param {string} difficulty - Difficulty level
    * @param {number} count - Number of questions
+   * @param {number} timestamp - Timestamp to ensure unique requests
+   * @param {Array} usedCategories - Previously used categories
    * @returns {Promise<Array>} Quiz questions
    */
-  getQuizData: async (category = 'mixed', difficulty = 'beginner', count = 10) => {
+  async getQuizData(category = 'mixed', difficulty = 'beginner', count = 10, timestamp = Date.now(), usedCategories = []) {
     try {
       // Try to get quiz data from backend
       const response = await api.post('/ai/generate-quiz', {
@@ -320,37 +734,39 @@ const apiService = {
         count
       });
       
-      if (response.data && response.data.questions) {
-        return response.data.questions;
+      if (response.data && (response.data.questions || Array.isArray(response.data))) {
+        const questions = response.data.questions || response.data;
+        return questions.map((q, index) => ({
+          id: q.id || `quiz-${index + 1}-${Date.now()}`,
+          text: q.text || q.question || 'Question not available',
+          translation: q.translation || `What does "${q.text}" mean?`,
+          options: q.options || ['Option A', 'Option B', 'Option C', 'Option D'],
+          correctAnswer: q.correctAnswer || 0,
+          explanation: q.explanation || 'Explanation not available'
+        }));
       }
       
       // If backend fails, use direct OpenAI connection
+      console.log("Backend quiz data fetch failed, using direct OpenAI connection");
       const result = await openai.post('/chat/completions', {
         model: "gpt-3.5-turbo",
         messages: [
           {
             role: "system",
-            content: `You are a French language teacher creating multiple-choice quiz questions. Format each question with:
-1. text: The question in French
-2. options: Array of 4 possible answers in French
-3. correctAnswer: Index of correct answer (0-3)
-4. explanation: Brief explanation in English
-Return as a JSON object with a 'questions' array.`
+            content: `You are a French language teacher creating multiple-choice quiz questions. Format as JSON.`
           },
           {
             role: "user",
             content: `Create ${count} French language quiz questions about "${category}" for ${difficulty} level students. 
-Example format:
-{
-  "questions": [
-    {
-      "text": "Quelle est la couleur du ciel?",
-      "options": ["bleu", "rouge", "vert", "jaune"],
-      "correctAnswer": 0,
-      "explanation": "The sky is blue (bleu)"
-    }
-  ]
-}`
+
+For EACH question, include:
+1. text: The question in French
+2. translation: The same question translated to English 
+3. options: Array of 4 possible answers (make sure one is correct)
+4. correctAnswer: Index of correct answer (0-3)
+5. explanation: Brief explanation of the answer in English
+
+Format your response as a JSON array of questions. Make sure the questions are diverse and appropriate for the difficulty level.`
           }
         ],
         temperature: 0.7,
@@ -359,22 +775,81 @@ Example format:
       });
 
       const content = JSON.parse(result.data.choices[0].message.content);
-      if (!content.questions || !Array.isArray(content.questions)) {
+      const questions = content.questions || content;
+      
+      if (!Array.isArray(questions) || questions.length === 0) {
         throw new Error('Invalid quiz data format');
       }
 
-      // Validate and format each question
-      return content.questions.map((q, index) => ({
+      // Normalize each question
+      return questions.map((q, index) => ({
         id: `quiz-${index + 1}-${Date.now()}`,
         text: q.text || 'Question not available',
-        options: Array.isArray(q.options) && q.options.length === 4 ? q.options : ['Option A', 'Option B', 'Option C', 'Option D'],
+        translation: q.translation || `What does "${q.text}" mean?`,
+        options: Array.isArray(q.options) && q.options.length >= 4 ? q.options : ['Option A', 'Option B', 'Option C', 'Option D'],
         correctAnswer: typeof q.correctAnswer === 'number' && q.correctAnswer >= 0 && q.correctAnswer <= 3 ? q.correctAnswer : 0,
         explanation: q.explanation || 'Explanation not available'
       }));
     } catch (error) {
       console.error('Error getting quiz data:', error);
-      // Return fallback questions if API fails
-      return getFallbackQuizData(category, difficulty, count);
+      
+      // Generate emergency fallback quiz data
+      const fallbackQuestions = [
+        {
+          id: `quiz-1-${Date.now()}`,
+          text: "Comment dit-on 'hello' en français?",
+          translation: "How do you say 'hello' in French?",
+          options: ["bonjour", "au revoir", "merci", "s'il vous plaît"],
+          correctAnswer: 0,
+          explanation: "'Bonjour' means 'hello' in French."
+        },
+        {
+          id: `quiz-2-${Date.now()}`,
+          text: "Quelle est la couleur du ciel?",
+          translation: "What is the color of the sky?",
+          options: ["bleu", "rouge", "vert", "jaune"],
+          correctAnswer: 0,
+          explanation: "The sky is blue (bleu)."
+        },
+        {
+          id: `quiz-3-${Date.now()}`,
+          text: "Comment dit-on 'thank you' en français?",
+          translation: "How do you say 'thank you' in French?",
+          options: ["merci", "bonjour", "au revoir", "oui"],
+          correctAnswer: 0,
+          explanation: "'Merci' means 'thank you' in French."
+        },
+        {
+          id: `quiz-4-${Date.now()}`,
+          text: "Quelle est la capitale de la France?",
+          translation: "What is the capital of France?",
+          options: ["Paris", "Lyon", "Marseille", "Bordeaux"],
+          correctAnswer: 0,
+          explanation: "Paris is the capital of France."
+        },
+        {
+          id: `quiz-5-${Date.now()}`,
+          text: "Quel jour vient après lundi?",
+          translation: "What day comes after Monday?",
+          options: ["mardi", "mercredi", "jeudi", "dimanche"],
+          correctAnswer: 0,
+          explanation: "Tuesday (mardi) comes after Monday (lundi)."
+        }
+      ];
+      
+      // Add more questions to meet the requested count
+      while (fallbackQuestions.length < count) {
+        fallbackQuestions.push({
+          id: `quiz-${fallbackQuestions.length + 1}-${Date.now()}`,
+          text: "Quel est le mot français pour 'water'?",
+          translation: "What is the French word for 'water'?",
+          options: ["eau", "vin", "bière", "jus"],
+          correctAnswer: 0,
+          explanation: "'Eau' means 'water' in French."
+        });
+      }
+      
+      return fallbackQuestions.slice(0, count);
     }
   },
   
@@ -385,7 +860,7 @@ Example format:
    * @param {Array} conversationHistory - Previous conversation history
    * @returns {Promise<Object>} Chat response with suggestions
    */
-  chatWithAI: async (message, userLevel = 'beginner', conversationHistory = []) => {
+  async chatWithAI(message, userLevel = 'beginner', conversationHistory = []) {
     try {
       // Try to use backend first
       const response = await api.post('/ai/chat', {
@@ -399,6 +874,7 @@ Example format:
       }
       
       // If backend fails, use direct OpenAI connection
+      console.log("Backend AI chat failed, using direct OpenAI connection");
       
       // Format conversation history for OpenAI
       const messages = [
@@ -411,7 +887,7 @@ Example format:
       // Add conversation history
       conversationHistory.forEach(msg => {
         messages.push({
-          role: msg.role === 'user' ? 'user' : 'assistant',
+          role: msg.role,
           content: msg.content
         });
       });
@@ -461,7 +937,7 @@ Example format:
     } catch (error) {
       console.error('Error in AI chat:', error);
       return {
-        response: getFallbackChatResponse(message, userLevel),
+        response: "Je suis désolé, mais je rencontre des difficultés techniques. Pouvons-nous essayer à nouveau? (I'm sorry, but I'm experiencing technical difficulties. Can we try again?)",
         suggestions: [
           "Comment dit-on... en français? (How do you say... in French?)",
           "Je ne comprends pas. (I don't understand.)",
@@ -471,189 +947,5 @@ Example format:
     }
   }
 };
-
-// Generate image for a word using DALL-E
-async function generateWordImage(word, english) {
-  try {
-    const response = await openai.post('/images/generations', {
-      model: "dall-e-3",
-      prompt: `A simple, clear illustration of the French word "${word}" (${english})`,
-      n: 1,
-      size: "1024x1024",  // Using the supported size for DALL-E 3
-      quality: "standard",
-      style: "natural"
-    });
-
-    if (response.data && response.data.data && response.data.data[0]) {
-      return response.data.data[0].url;
-    }
-    throw new Error('No image generated');
-  } catch (error) {
-    console.error(`Error generating image for ${word}:`, error);
-    return generateWordPlaceholder(word, english, Date.now());
-  }
-}
-
-/**
- * Generate word placeholder SVG
- * @param {string} word - French word
- * @param {string} translation - English translation
- * @param {number} timestamp - Timestamp for unique SVG
- * @returns {string} SVG data URL
- */
-function generateWordPlaceholder(word, translation, timestamp) {
-  // Colors based on first character for consistency
-  const colors = [
-    '#FFC6FF', '#FFADAD', '#FFD6A5', '#FDFFB6', 
-    '#CAFFBF', '#9BF6FF', '#A0C4FF', '#BDB2FF'
-  ];
-  
-  const colorIndex = word.charCodeAt(0) % colors.length;
-  const bgColor = colors[colorIndex];
-  
-  // Create SVG with word and translation
-  const svgContent = `
-  <svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
-    <rect width="100%" height="100%" fill="${bgColor}"/>
-    <text x="100" y="85" font-family="Arial" font-size="24" text-anchor="middle" font-weight="bold" fill="#333333">${word}</text>
-    <text x="100" y="115" font-family="Arial" font-size="18" text-anchor="middle" fill="#666666">${translation}</text>
-  </svg>
-  `;
-  
-  // Convert to data URL
-  return `data:image/svg+xml;base64,${btoa(svgContent)}`;
-}
-
-// Fallback functions for when API calls fail
-function getFallbackDailyLesson() {
-  const date = new Date();
-  const dayOfYear = Math.floor((date - new Date(date.getFullYear(), 0, 0)) / (1000 * 60 * 60 * 24));
-  
-  const themes = ['greetings', 'food', 'animals', 'household', 'travel', 'colors', 'numbers'];
-  const theme = themes[dayOfYear % themes.length];
-  
-  const fallbackVocabSets = {
-    greetings: [
-      { id: '1', french: 'Bonjour', english: 'Hello', category: 'greetings', exampleFrench: 'Bonjour, comment allez-vous?', exampleEnglish: 'Hello, how are you?' },
-      { id: '2', french: 'Salut', english: 'Hi', category: 'greetings', exampleFrench: 'Salut, ça va?', exampleEnglish: 'Hi, how\'s it going?' },
-      { id: '3', french: 'Au revoir', english: 'Goodbye', category: 'greetings', exampleFrench: 'Au revoir et à bientôt!', exampleEnglish: 'Goodbye and see you soon!' },
-      { id: '4', french: 'Bonsoir', english: 'Good evening', category: 'greetings', exampleFrench: 'Bonsoir, comment s\'est passée votre journée?', exampleEnglish: 'Good evening, how was your day?' },
-      { id: '5', french: 'Enchanté', english: 'Nice to meet you', category: 'greetings', exampleFrench: 'Enchanté de faire votre connaissance.', exampleEnglish: 'Nice to meet you.' },
-      { id: '6', french: 'À plus tard', english: 'See you later', category: 'greetings', exampleFrench: 'À plus tard, mon ami!', exampleEnglish: 'See you later, my friend!' },
-      { id: '7', french: 'Bienvenue', english: 'Welcome', category: 'greetings', exampleFrench: 'Bienvenue à Paris!', exampleEnglish: 'Welcome to Paris!' }
-    ],
-    // More fallback sets here
-    // ...
-  };
-  
-  // Get vocabulary for today's theme
-  let vocabulary = fallbackVocabSets[theme] || fallbackVocabSets.greetings;
-  
-  // Add placeholder images
-  return vocabulary.map(item => ({
-    ...item,
-    imageUrl: generateWordPlaceholder(item.french, item.english)
-  }));
-}
-
-function getFallbackPhraseData(difficulty, category) {
-  const fallbackPhrases = {
-    greetings: {
-      beginner: { 
-        id: 'g1',
-        french: 'Bonjour comment allez-vous', 
-        english: 'Hello how are you', 
-        words: ['Bonjour', 'comment', 'allez', 'vous'], 
-        hint: 'A common greeting' 
-      },
-      intermediate: { 
-        id: 'g2',
-        french: 'Enchanté de faire votre connaissance', 
-        english: 'Pleased to meet you', 
-        words: ['Enchanté', 'de', 'faire', 'votre', 'connaissance'], 
-        hint: 'When meeting someone new' 
-      },
-      advanced: { 
-        id: 'g3',
-        french: 'Je vous souhaite une excellente journée', 
-        english: 'I wish you an excellent day', 
-        words: ['Je', 'vous', 'souhaite', 'une', 'excellente', 'journée'], 
-        hint: 'A polite farewell' 
-      }
-    },
-    // More fallback phrases here
-    // ...
-  };
-  
-  // Return appropriate phrase based on category and difficulty
-  const categoryPhrases = fallbackPhrases[category] || fallbackPhrases.greetings;
-  return categoryPhrases[difficulty] || categoryPhrases.beginner;
-}
-
-function getFallbackImageWordMatchData(difficulty, category) {
-  const fallbackData = {
-    animals: [
-      { id: '1', french: 'Chat', english: 'Cat', category: 'animals' },
-      { id: '2', french: 'Chien', english: 'Dog', category: 'animals' },
-      { id: '3', french: 'Oiseau', english: 'Bird', category: 'animals' },
-      { id: '4', french: 'Poisson', english: 'Fish', category: 'animals' },
-      { id: '5', french: 'Lapin', english: 'Rabbit', category: 'animals' },
-      { id: '6', french: 'Cheval', english: 'Horse', category: 'animals' },
-      { id: '7', french: 'Vache', english: 'Cow', category: 'animals' },
-      { id: '8', french: 'Canard', english: 'Duck', category: 'animals' }
-    ],
-    // More categories here
-    // ...
-  };
-  
-  const words = fallbackData[category] || fallbackData.animals;
-  
-  // Add placeholder images
-  return { 
-    words: words.map(word => ({
-      ...word,
-      imageUrl: generateWordPlaceholder(word.french, word.english)
-    }))
-  };
-}
-
-function getFallbackQuizData(category, difficulty, count) {
-  const fallbackQuestions = [
-    {
-      id: `quiz-1-${Date.now()}`,
-      text: "Comment dit-on 'hello' en français?",
-      options: ["bonjour", "au revoir", "merci", "s'il vous plaît"],
-      correctAnswer: 0,
-      explanation: "'Bonjour' means 'hello' in French"
-    },
-    {
-      id: `quiz-2-${Date.now()}`,
-      text: "Quelle est la couleur du ciel?",
-      options: ["bleu", "rouge", "vert", "jaune"],
-      correctAnswer: 0,
-      explanation: "The sky is blue (bleu)"
-    },
-    // Add more fallback questions...
-  ];
-
-  return fallbackQuestions.slice(0, count);
-}
-
-function getFallbackChatResponse(message, userLevel) {
-  const lowerMessage = message.toLowerCase();
-  
-  if (/\b(hello|hi|bon[jn]our|salut)\b/.test(lowerMessage)) {
-    return "Bonjour ! (Hello!) Je suis votre professeur de français. Comment puis-je vous aider aujourd'hui ? (I am your French teacher. How can I help you today?)";
-  }
-  
-  // Default response based on user level
-  const defaultResponses = {
-    beginner: "Je comprends que vous apprenez le français. Essayons de pratiquer avec des phrases simples. (I understand you're learning French. Let's practice with simple sentences.) Pouvez-vous me dire ce que vous aimez faire ? (Can you tell me what you like to do?)",
-    intermediate: "Continuons à pratiquer votre français. Avez-vous des questions sur la grammaire ou le vocabulaire ? (Let's continue practicing your French. Do you have questions about grammar or vocabulary?)",
-    advanced: "Votre français s'améliore ! Parlons de sujets plus complexes. Quels sont vos intérêts ? (Your French is improving! Let's talk about more complex topics. What are your interests?)"
-  };
-  
-  return defaultResponses[userLevel] || defaultResponses.beginner;
-}
 
 export default apiService;

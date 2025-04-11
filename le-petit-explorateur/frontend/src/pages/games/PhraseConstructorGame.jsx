@@ -3,6 +3,7 @@ import { useProgress } from '../../contexts/ProgressContext';
 import { useChalkboard } from '../../contexts/ChalkboardContext';
 import apiService from '../../services/apiService';
 import Loading from '../../components/common/Loading';
+import ErrorMessage from '../../components/common/ErrorMessage';
 
 const PhraseConstructorGame = () => {
   const { updateProgress } = useProgress();
@@ -39,95 +40,69 @@ const PhraseConstructorGame = () => {
     if (gameState === 'playing') {
       fetchSentence();
     }
-  }, [gameState, round, difficulty, sentenceCategory]);
+  }, [gameState, round]);
 
   const fetchSentence = async () => {
     setLoading(true);
     setError(null);
     setIsCheckingAnswer(false);
+    setFeedback(null);
     
     try {
-      // Add timestamp to ensure we get fresh data
-      const timestamp = Date.now();
+      console.log(`Fetching sentence for round ${round}/${totalRounds}, category: ${sentenceCategory}, difficulty: ${difficulty}`);
       
-      // Request a phrase with round number to get variety
+      // Generate a unique timestamp for this request
+      const timestamp = Date.now() + round * 1000;
+      
+      // Request a phrase with current round and round-specific prompt to ensure variety
       const sentenceData = await apiService.getPhraseConstructorData(
         difficulty, 
         sentenceCategory,
         timestamp,
-        round,  // Pass the round number
-        completedSentences  // Pass already used sentences
+        round, // Pass the current round number
+        completedSentences // Pass already used sentences
       );
       
-      // Check if we've seen this sentence before
+      console.log('Received sentence data:', sentenceData);
+      
+      // Check if we got a valid response
+      if (!sentenceData || !sentenceData.french || !sentenceData.words || sentenceData.words.length === 0) {
+        throw new Error('Invalid sentence data received');
+      }
+      
+      // Ensure the sentence is not already used
       if (completedSentences.includes(sentenceData.french)) {
-        console.log('This sentence was already used, trying to get another one...');
-        // Try with a different timestamp
+        console.warn('This sentence was already used, trying to get another one...');
+        
+        // Try with a different category
+        const categories = ['greetings', 'questions', 'travel', 'food', 'daily'];
+        const newCategory = categories[(categories.indexOf(sentenceCategory) + round) % categories.length];
+        
+        // Use a different timestamp
         const newSentenceData = await apiService.getPhraseConstructorData(
-          difficulty, 
-          sentenceCategory,
-          timestamp + 1000,
+          difficulty,
+          newCategory,
+          timestamp + 5000,
           round,
           completedSentences
         );
+        
         processSentence(newSentenceData);
       } else {
         processSentence(sentenceData);
       }
     } catch (error) {
       console.error('Error fetching sentence:', error);
-      setError('Failed to load sentence. Using fallback data instead.');
-      
-      // Use fallback sentence with variety based on round number
-      processSentence(getFallbackSentence(round));
+      setError('Failed to load sentence. Please try again or select a different category.');
+      setLoading(false);
     }
-  };
-
-  const getFallbackSentence = (roundNumber) => {
-    // Fallback sentences by category and difficulty with more variety
-    const fallbacks = {
-      greetings: [
-        { french: 'Bonjour comment allez-vous', english: 'Hello how are you', words: ['Bonjour', 'comment', 'allez', 'vous'], hint: 'A common greeting' },
-        { french: 'Enchanté de faire votre connaissance', english: 'Pleased to meet you', words: ['Enchanté', 'de', 'faire', 'votre', 'connaissance'], hint: 'When meeting someone new' },
-        { french: 'Au revoir à bientôt', english: 'Goodbye see you soon', words: ['Au', 'revoir', 'à', 'bientôt'], hint: 'When leaving' },
-        { french: 'Bonne journée à vous', english: 'Have a good day', words: ['Bonne', 'journée', 'à', 'vous'], hint: 'Wishing someone well' },
-        { french: 'Comment vous sentez-vous aujourd\'hui', english: 'How do you feel today', words: ['Comment', 'vous', 'sentez', 'vous', 'aujourd\'hui'], hint: 'Asking about wellbeing' }
-      ],
-      // More categories...
-    };
-    
-    // Get sentences for this category or default to greetings
-    const categorySentences = fallbacks[sentenceCategory] || fallbacks.greetings;
-    
-    // Pick based on round number to ensure variety
-    const index = (roundNumber - 1) % categorySentences.length;
-    return categorySentences[index];
   };
 
   const processSentence = (sentenceData) => {
     console.log('Processing sentence:', sentenceData);
     
-    // Ensure proper sentence format
-    const processedSentence = {
-      french: sentenceData.french || '',
-      english: sentenceData.english || '',
-      hint: sentenceData.hint || '',
-    };
-    
-    // Ensure words array exists
-    let words = sentenceData.words || [];
-    
-    // If words array is not provided, split the sentence
-    if (words.length === 0) {
-      words = processedSentence.french
-        .trim()
-        .replace(/[.,!?;:]/g, '') // Remove punctuation
-        .split(/\s+/)
-        .filter(word => word.length > 0);
-    }
-    
-    // Create word objects
-    const wordObjects = words.map((word, index) => ({
+    // Ensure word objects have unique IDs
+    const wordObjects = sentenceData.words.map((word, index) => ({
       id: `word-${index}-${Date.now()}`, // Ensure unique IDs
       text: word,
       originalIndex: index
@@ -135,7 +110,10 @@ const PhraseConstructorGame = () => {
     
     // Set current sentence with word objects
     setCurrentSentence({
-      ...processedSentence,
+      id: sentenceData.id || `sentence-${round}-${Date.now()}`,
+      french: sentenceData.french,
+      english: sentenceData.english,
+      hint: sentenceData.hint,
       words: wordObjects
     });
     
@@ -165,22 +143,27 @@ const PhraseConstructorGame = () => {
   const checkForMatch = () => {
     setIsCheckingAnswer(true);
     
-    // Create the constructed sentence from word objects
-    const constructedText = constructedSentence.map(word => word.text).join(' ');
+    // Check if constructed sentence has the same number of words as original
+    if (constructedSentence.length !== currentSentence.words.length) {
+      setFeedback({
+        type: 'error',
+        message: 'Your sentence is not complete. Use all the words.',
+        isCorrect: false
+      });
+      setIsCheckingAnswer(false);
+      return;
+    }
     
-    // Normalize both texts for comparison (remove punctuation, lowercase, and normalize hyphens)
-    const normalizeText = (text) => {
-      return text.toLowerCase()
-        .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-    };
+    // Compare original word order with constructed order
+    const originalOrder = currentSentence.words.map(word => word.text);
+    const constructedOrder = constructedSentence.map(word => word.text);
     
-    const normalizedConstructed = normalizeText(constructedText);
-    const normalizedExpected = normalizeText(currentSentence.french);
+    console.log('Checking sentence match:');
+    console.log('Original:', originalOrder);
+    console.log('Constructed:', constructedOrder);
     
-    // Check if they match
-    const isCorrect = normalizedConstructed === normalizedExpected;
+    // Check if the constructed sentence matches the original
+    const isCorrect = JSON.stringify(originalOrder) === JSON.stringify(constructedOrder);
     
     if (isCorrect) {
       // Handle correct match
@@ -197,53 +180,54 @@ const PhraseConstructorGame = () => {
       
       if (playSound) playSound('success');
       
-      // Move to next round if available after a short delay
+      // Move to next round after a short delay
       setTimeout(() => {
         if (round < totalRounds) {
           setRound(prevRound => prevRound + 1);
-          setGameState('playing');
         } else {
           completeGame();
         }
       }, 2000);
     } else {
       // Handle incorrect match
+      setAttempts(attempts + 1);
+      
+      // Provide more helpful feedback
+      let errorFeedback = 'The word order is not correct yet.';
+      
+      // If this is the second attempt, give a more specific hint
+      if (attempts > 0) {
+        // Find the first incorrect word position
+        for (let i = 0; i < originalOrder.length; i++) {
+          if (i >= constructedOrder.length || originalOrder[i] !== constructedOrder[i]) {
+            const correctStart = originalOrder.slice(0, i + 1).join(' ');
+            errorFeedback = `The beginning should be: "${correctStart}..."`;
+            break;
+          }
+        }
+      }
+      
+      // If it's the third attempt, give even more help
+      if (attempts > 1) {
+        errorFeedback = `The correct order is: "${originalOrder.join(' ')}"`;
+      }
+      
       setFeedback({
         type: 'error',
         message: 'Not quite right. Try again!',
         isCorrect: false,
-        summary: 'The word order is not correct yet.',
-        corrections: [{
-          actual: constructedText,
-          expected: currentSentence.french,
-          explanation: 'Make sure the words are in the right order.'
-        }]
+        summary: errorFeedback
       });
       
       if (playSound) playSound('incorrect');
-      
-      // Allow another try after a delay
-      setTimeout(() => {
-        setIsCheckingAnswer(false);
-      }, 1500);
     }
+    
+    setIsCheckingAnswer(false);
   };
 
   const handleCheckSentence = () => {
     if (playSound) playSound('click');
-    setAttempts(attempts + 1);
     checkForMatch();
-  };
-
-  const handleNextRound = () => {
-    if (playSound) playSound('click');
-    
-    if (round < totalRounds) {
-      setRound(round + 1);
-      setGameState('playing');
-    } else {
-      completeGame();
-    }
   };
 
   const completeGame = () => {
@@ -267,6 +251,7 @@ const PhraseConstructorGame = () => {
     setRound(1);
     setScore(0);
     setCompletedSentences([]);
+    setAttempts(0);
     setGameState('playing');
   };
 
@@ -296,9 +281,7 @@ const PhraseConstructorGame = () => {
       </div>
 
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          <p>{error}</p>
-        </div>
+        <ErrorMessage message={error} />
       )}
 
       {gameState === 'intro' && (
@@ -356,7 +339,7 @@ const PhraseConstructorGame = () => {
 
       {gameState === 'playing' && currentSentence && (
         <div className="game-container">
-          <div className="game-progress flex justify-between items-center mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+        <div className="game-progress flex justify-between items-center mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <div>
               <span className="font-medium text-slate-700">Round: </span>
               <span className="px-2 py-1 bg-blue-600 text-white rounded-full">
@@ -383,7 +366,7 @@ const PhraseConstructorGame = () => {
             )}
           </div>
           
-          <div className="construction-area bg-white p-4 rounded-lg shadow mb-6 min-h-24 flex flex-wrap items-center border-2 border-dashed border-blue-300">
+          <div className="construction-area bg-white p-4 rounded-lg shadow mb-6 min-h-24 flex flex-wrap items-center justify-center border-2 border-dashed border-blue-300">
             {constructedSentence.length > 0 ? (
               constructedSentence.map((word, index) => (
                 <div 

@@ -335,24 +335,32 @@ exports.generateCulturalContext = async ({ vocabulary, theme, difficulty }) => {
  * @returns {Promise<string>} Generated image URL
  */
 async function generateImage(prompt) {
-    try {
+  try {
+    // Try up to 3 times with exponential backoff
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
         const response = await openai.images.generate({
-            model: "dall-e-3",
-            prompt: prompt,
-            n: 1,
-            size: "1024x1024",
-            quality: "standard",
-            style: "natural"
+          model: "dall-e-3",
+          prompt: prompt,
+          n: 1,
+          size: "1024x1024",  // The only size supported by DALL-E 3
+          quality: "standard",
+          style: "natural"
         });
 
         if (response.data && response.data[0]) {
-            return response.data[0].url;
+          return response.data[0].url;
         }
         throw new Error('No image generated');
-    } catch (error) {
-        logger.error(`OpenAI image generation error: ${error.message}`);
-        throw new Error(`OpenAI image generation error: ${error.message}`);
+      } catch (error) {
+        if (attempt === 2) throw error; // Last attempt, propagate error
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+      }
     }
+  } catch (error) {
+    logger.error(`OpenAI image generation error for prompt "${prompt}": ${error.message}`);
+    throw new Error(`OpenAI image generation error: ${error.message}`);
+  }
 }
 
 // Export all functions

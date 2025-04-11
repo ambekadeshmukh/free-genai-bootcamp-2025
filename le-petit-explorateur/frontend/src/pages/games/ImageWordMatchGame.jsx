@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useProgress } from '../../contexts/ProgressContext';
 import { useChalkboard } from '../../contexts/ChalkboardContext';
 import apiService from '../../services/apiService';
@@ -12,142 +12,407 @@ const ImageWordMatchGame = () => {
   const [loading, setLoading] = useState(true);
   const [gameState, setGameState] = useState('intro'); // intro, playing, complete
   const [difficulty, setDifficulty] = useState('beginner');
-  const [category, setCategory] = useState('general');
+  const [category, setCategory] = useState('animals');
   const [rounds, setRounds] = useState([]);
   const [currentRound, setCurrentRound] = useState(0);
   const [selectedOption, setSelectedOption] = useState(null);
   const [isCorrect, setIsCorrect] = useState(null);
   const [score, setScore] = useState(0);
   const [totalRounds, setTotalRounds] = useState(10);
-  const [error, setError] = useState(null);
+  const [usingAIGenerated, setUsingAIGenerated] = useState(true);
+  const [loadingProgress, setLoadingProgress] = useState(0);
   
   // Available categories
   const categories = [
-    { id: 'general', name: 'General' },
     { id: 'animals', name: 'Animals' },
     { id: 'food', name: 'Food & Drinks' },
     { id: 'household', name: 'Household' },
     { id: 'colors', name: 'Colors' },
-    { id: 'numbers', name: 'Numbers' }
+    { id: 'places', name: 'Places' }
   ];
 
-  // Load game data
-  const loadGameData = async () => {
+  // Preloaded vocabulary sets for fallback
+  const fallbackVocabulary = {
+    animals: [
+      { id: 'a1', french: 'chat', english: 'cat' },
+      { id: 'a2', french: 'chien', english: 'dog' },
+      { id: 'a3', french: 'oiseau', english: 'bird' },
+      { id: 'a4', french: 'poisson', english: 'fish' },
+      { id: 'a5', french: 'lapin', english: 'rabbit' },
+      { id: 'a6', french: 'cheval', english: 'horse' },
+      { id: 'a7', french: 'souris', english: 'mouse' },
+      { id: 'a8', french: 'cochon', english: 'pig' },
+      { id: 'a9', french: 'poule', english: 'hen' },
+      { id: 'a10', french: 'canard', english: 'duck' }
+    ],
+    food: [
+      { id: 'f1', french: 'pain', english: 'bread' },
+      { id: 'f2', french: 'fromage', english: 'cheese' },
+      { id: 'f3', french: 'pomme', english: 'apple' },
+      { id: 'f4', french: 'eau', english: 'water' },
+      { id: 'f5', french: 'café', english: 'coffee' },
+      { id: 'f6', french: 'chocolat', english: 'chocolate' },
+      { id: 'f7', french: 'banane', english: 'banana' },
+      { id: 'f8', french: 'vin', english: 'wine' },
+      { id: 'f9', french: 'soupe', english: 'soup' },
+      { id: 'f10', french: 'poulet', english: 'chicken' }
+    ],
+    household: [
+      { id: 'h1', french: 'table', english: 'table' },
+      { id: 'h2', french: 'chaise', english: 'chair' },
+      { id: 'h3', french: 'lit', english: 'bed' },
+      { id: 'h4', french: 'lampe', english: 'lamp' },
+      { id: 'h5', french: 'porte', english: 'door' },
+      { id: 'h6', french: 'fenêtre', english: 'window' },
+      { id: 'h7', french: 'tapis', english: 'rug' },
+      { id: 'h8', french: 'miroir', english: 'mirror' },
+      { id: 'h9', french: 'horloge', english: 'clock' },
+      { id: 'h10', french: 'télévision', english: 'television' }
+    ],
+    colors: [
+      { id: 'c1', french: 'rouge', english: 'red' },
+      { id: 'c2', french: 'bleu', english: 'blue' },
+      { id: 'c3', french: 'vert', english: 'green' },
+      { id: 'c4', french: 'jaune', english: 'yellow' },
+      { id: 'c5', french: 'noir', english: 'black' },
+      { id: 'c6', french: 'blanc', english: 'white' },
+      { id: 'c7', french: 'gris', english: 'gray' },
+      { id: 'c8', french: 'orange', english: 'orange' },
+      { id: 'c9', french: 'violet', english: 'purple' },
+      { id: 'c10', french: 'rose', english: 'pink' }
+    ],
+    places: [
+      { id: 'p1', french: 'maison', english: 'house' },
+      { id: 'p2', french: 'école', english: 'school' },
+      { id: 'p3', french: 'parc', english: 'park' },
+      { id: 'p4', french: 'hôpital', english: 'hospital' },
+      { id: 'p5', french: 'restaurant', english: 'restaurant' },
+      { id: 'p6', french: 'musée', english: 'museum' },
+      { id: 'p7', french: 'plage', english: 'beach' },
+      { id: 'p8', french: 'gare', english: 'train station' },
+      { id: 'p9', french: 'bibliothèque', english: 'library' },
+      { id: 'p10', french: 'cinéma', english: 'cinema' }
+    ]
+  };
+
+  // Generate placeholder image based on word - improved version
+  const generatePlaceholder = useCallback((word, english) => {
+    // Choose a color based on the first character of the word
+    const colorMap = {
+      'a': '#FFD6A5', 'b': '#FFADAD', 'c': '#CAFFBF', 'd': '#9BF6FF',
+      'e': '#BDB2FF', 'f': '#FFC6FF', 'g': '#FDFFB6', 'h': '#A0C4FF',
+      'i': '#FFD6A5', 'j': '#FFADAD', 'k': '#CAFFBF', 'l': '#9BF6FF',
+      'm': '#BDB2FF', 'n': '#FFC6FF', 'o': '#FDFFB6', 'p': '#A0C4FF',
+      'q': '#FFD6A5', 'r': '#FFADAD', 's': '#CAFFBF', 't': '#9BF6FF',
+      'u': '#BDB2FF', 'v': '#FFC6FF', 'w': '#FDFFB6', 'x': '#A0C4FF',
+      'y': '#BDB2FF', 'z': '#FFC6FF'
+    };
+    
+    const firstChar = word.charAt(0).toLowerCase();
+    const bgColor = colorMap[firstChar] || '#F8F9FA';
+    
+    // Generate different SVG shapes based on category
+    let svgIcon = '';
+    const lowerEnglish = english.toLowerCase();
+    
+    if (/cat|dog|bird|animal|fish|pet|rabbit|mouse|pig|hen|duck/.test(lowerEnglish)) {
+      // Animal icon
+      svgIcon = `<circle cx="125" cy="75" r="30" fill="#333333"/>
+                 <path d="M90,115 C90,90 160,90 160,115 C160,150 90,150 90,115" fill="#333333"/>`;
+    } else if (/bread|cheese|apple|water|coffee|food|fruit|wine|soup|chicken/.test(lowerEnglish)) {
+      // Food icon
+      svgIcon = `<circle cx="125" cy="80" r="35" fill="#333333"/>
+                 <rect x="115" y="115" width="20" height="40" fill="#333333"/>`;
+    } else if (/table|chair|bed|lamp|door|window|rug|mirror|clock|television|furniture/.test(lowerEnglish)) {
+      // Household item
+      svgIcon = `<rect x="75" y="60" width="100" height="80" fill="#333333"/>
+                 <rect x="105" y="140" width="40" height="30" fill="#333333"/>`;
+    } else if (/red|blue|green|yellow|black|white|gray|orange|purple|pink|color/.test(lowerEnglish)) {
+      // Color swatch
+      svgIcon = `<rect x="75" y="60" width="100" height="100" fill="#333333"/>`;
+    } else {
+      // Default place icon
+      svgIcon = `<path d="M125,50 L175,100 L150,100 L150,150 L100,150 L100,100 L75,100 Z" fill="#333333"/>`;
+    }
+    
+    // Create SVG with word and translation
+    const svgContent = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="250" height="250" viewBox="0 0 250 250">
+      <rect width="100%" height="100%" fill="${bgColor}"/>
+      ${svgIcon}
+      <text x="125" y="200" font-family="Arial, sans-serif" font-size="28" text-anchor="middle" font-weight="bold" fill="#333333">${word}</text>
+      <text x="125" y="225" font-family="Arial, sans-serif" font-size="18" text-anchor="middle" fill="#666666">${english}</text>
+    </svg>
+    `;
+    
     try {
-      setLoading(true);
-      setError(null);
+      return `data:image/svg+xml;base64,${btoa(svgContent)}`;
+    } catch (e) {
+      console.error('SVG encoding error:', e);
+      // Fallback to simpler SVG if encoding fails
+      const simpleSvg = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="250" height="250" viewBox="0 0 250 250">
+        <rect width="100%" height="100%" fill="${bgColor}"/>
+        <text x="125" y="125" font-family="Arial, sans-serif" font-size="28" text-anchor="middle" font-weight="bold" fill="#333333">${word}</text>
+      </svg>
+      `;
+      return `data:image/svg+xml;base64,${btoa(simpleSvg)}`;
+    }
+  }, []);
+
+  // Shuffle array helper function
+  const shuffleArray = useCallback((array) => {
+    const newArray = [...array];
+    for (let i = newArray.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+    }
+    return newArray;
+  }, []);
+
+  // Generate options for word-to-image rounds
+  const generateWordToImageOptions = useCallback((words, correctWord, count) => {
+    const options = [{ 
+      id: correctWord.id,
+      imageUrl: correctWord.imageUrl,
+      french: correctWord.french
+    }];
+    
+    const usedIds = new Set([correctWord.id]);
+    
+    // Add random options
+    while (options.length < count && options.length < words.length) {
+      const randomIndex = Math.floor(Math.random() * words.length);
+      const randomWord = words[randomIndex];
       
-      const data = await apiService.getImageWordMatchData(difficulty, category);
-      if (!data || !data.words || !data.words.length) {
-        throw new Error('Failed to load game data');
+      if (!usedIds.has(randomWord.id)) {
+        options.push({ 
+          id: randomWord.id,
+          imageUrl: randomWord.imageUrl,
+          french: randomWord.french
+        });
+        usedIds.add(randomWord.id);
       }
+    }
+    
+    return shuffleArray(options);
+  }, [shuffleArray]);
+
+  // Generate options for image-to-word rounds
+  const generateImageToWordOptions = useCallback((words, correctWord, count) => {
+    const options = [{ 
+      id: correctWord.id,
+      text: correctWord.french,
+      translation: correctWord.english
+    }];
+    
+    const usedIds = new Set([correctWord.id]);
+    
+    // Add random options
+    while (options.length < count && options.length < words.length) {
+      const randomIndex = Math.floor(Math.random() * words.length);
+      const randomWord = words[randomIndex];
       
-      // Create rounds with both word-to-image and image-to-word
-      const gameRounds = data.words.flatMap(word => ([
-        {
+      if (!usedIds.has(randomWord.id)) {
+        options.push({ 
+          id: randomWord.id,
+          text: randomWord.french,
+          translation: randomWord.english
+        });
+        usedIds.add(randomWord.id);
+      }
+    }
+    
+    return shuffleArray(options);
+  }, [shuffleArray]);
+
+  // Create rounds alternating between word-to-image and image-to-word types
+  const createGameRounds = useCallback((processedWords) => {
+    // First shuffle the words to get random selection
+    const shuffledWords = shuffleArray([...processedWords]);
+    const gameRounds = [];
+    const usedWords = new Set();
+    
+    // Take only enough words for total rounds (considering we might use each word twice)
+    const wordsNeeded = Math.ceil(totalRounds / 2);
+    const selectedWords = shuffledWords.slice(0, wordsNeeded);
+    
+    // Create rounds for each selected word
+    for (let i = 0; i < selectedWords.length && gameRounds.length < totalRounds; i++) {
+      const word = selectedWords[i];
+      
+      // Only add rounds if we haven't reached the total yet
+      if (gameRounds.length < totalRounds) {
+        // Add word-to-image round
+        gameRounds.push({
+          id: `w2i-${word.id}`,
           type: 'word-to-image',
           word: word.french,
           translation: word.english,
-          image: word.image,
-          options: generateOptions(data.words, word, 'image')
-        },
-        {
-          type: 'image-to-word',
-          word: word.french,
-          translation: word.english,
-          image: word.image,
-          options: generateOptions(data.words, word, 'word')
-        }
-      ]));
+          correctOption: word.id,
+          options: generateWordToImageOptions(processedWords, word, 4)
+        });
+      }
       
-      // Shuffle and limit rounds
-      const shuffledRounds = shuffleArray(gameRounds).slice(0, totalRounds);
-      setRounds(shuffledRounds);
+      // Add image-to-word round if there are enough words and we haven't reached total
+      if (processedWords.length >= 4 && gameRounds.length < totalRounds) {
+        gameRounds.push({
+          id: `i2w-${word.id}`,
+          type: 'image-to-word',
+          image: word.imageUrl,
+          correctOption: word.id,
+          options: generateImageToWordOptions(processedWords, word, 4)
+        });
+      }
+    }
+    
+    // Final shuffle of the rounds
+    return shuffleArray(gameRounds);
+  }, [generateWordToImageOptions, generateImageToWordOptions, shuffleArray, totalRounds]);
+
+  // Preprocess and prepare words with images
+  const processWords = useCallback(async (words) => {
+    // Ensure each word has a unique ID and basic properties
+    const processedWords = words.map(word => ({
+      ...word,
+      id: word.id || `word-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      imageUrl: word.imageUrl || null // Will be filled in the next step
+    }));
+    
+    setLoadingProgress(10);
+    
+    // Process words in batches to generate or assign images
+    const BATCH_SIZE = 3;
+    const wordBatches = [];
+    for (let i = 0; i < processedWords.length; i += BATCH_SIZE) {
+      wordBatches.push(processedWords.slice(i, i + BATCH_SIZE));
+    }
+    
+    // Process each batch
+    for (let i = 0; i < wordBatches.length; i++) {
+      const batch = wordBatches[i];
+      await Promise.all(batch.map(async (word) => {
+        if (!word.imageUrl) {
+          try {
+            if (usingAIGenerated) {
+              // Try to get an AI-generated image
+              word.imageUrl = await apiService.generateWordImage(word.french, word.english)
+                .catch(() => generatePlaceholder(word.french, word.english));
+            } else {
+              word.imageUrl = generatePlaceholder(word.french, word.english);
+            }
+          } catch (err) {
+            console.warn(`Failed to get image for ${word.french}, using placeholder`, err);
+            word.imageUrl = generatePlaceholder(word.french, word.english);
+          }
+        }
+      }));
+      
+      // Update loading progress
+      const progress = Math.floor(((i + 1) / wordBatches.length) * 70) + 10;
+      setLoadingProgress(progress);
+    }
+    
+    return processedWords;
+  }, [generatePlaceholder, usingAIGenerated]);
+
+  // Load game data
+  const loadGameData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setLoadingProgress(0);
+      
+      let words = [];
+      
+      // Try to get data from API first
+      try {
+        console.log("Attempting to fetch words from AI service...");
+        setLoadingProgress(5);
+        const data = await apiService.getImageWordMatchData(difficulty, category);
+        
+        if (data && data.words && data.words.length > 0) {
+          console.log("Successfully received words from AI service:", data.words.length);
+          words = data.words;
+          setUsingAIGenerated(true);
+        } else {
+          throw new Error("No words received from API");
+        }
+      } catch (apiError) {
+        console.error("API fetch failed, using fallback vocabulary:", apiError);
+        words = fallbackVocabulary[category] || fallbackVocabulary.animals;
+        setUsingAIGenerated(false);
+      }
+      
+      setLoadingProgress(10);
+      
+      // Process words to ensure they have images
+      const processedWords = await processWords(words);
+      
+      setLoadingProgress(80);
+      
+      // Create game rounds
+      const gameRounds = createGameRounds(processedWords);
+      
+      setLoadingProgress(90);
+      
+      // Set up the game state
+      setRounds(gameRounds);
+      setCurrentRound(0);
+      setScore(0);
+      setSelectedOption(null);
+      setIsCorrect(null);
+      setLoadingProgress(100);
       setLoading(false);
+      
     } catch (err) {
       console.error('Error loading game data:', err);
-      setError('Failed to load game. Please try refreshing the page.');
+      
+      // Emergency fallback
+      setLoadingProgress(95);
+      const words = fallbackVocabulary[category] || fallbackVocabulary.animals;
+      const processedWords = words.map(word => ({
+        ...word,
+        imageUrl: generatePlaceholder(word.french, word.english)
+      }));
+      
+      // Create a minimal set of rounds for emergency situation
+      const emergencyRounds = [];
+      for (let i = 0; i < processedWords.length && i < 5; i++) {
+        const word = processedWords[i];
+        emergencyRounds.push({
+          id: `emergency-${i}`,
+          type: i % 2 === 0 ? 'word-to-image' : 'image-to-word',
+          word: word.french,
+          translation: word.english,
+          image: word.imageUrl,
+          correctOption: word.id,
+          options: i % 2 === 0 
+            ? shuffleArray([word, ...processedWords.filter(w => w.id !== word.id).slice(0, 3)]).map(w => ({
+                id: w.id,
+                imageUrl: w.imageUrl,
+                french: w.french
+              }))
+            : shuffleArray([word, ...processedWords.filter(w => w.id !== word.id).slice(0, 3)]).map(w => ({
+                id: w.id,
+                text: w.french,
+                translation: w.english
+              }))
+        });
+      }
+      
+      setRounds(emergencyRounds);
+      setUsingAIGenerated(false);
+      setLoadingProgress(100);
       setLoading(false);
     }
-  };
+  }, [difficulty, category, processWords, createGameRounds, generatePlaceholder, shuffleArray]);
 
+  // Load data when game state changes
   useEffect(() => {
     if (gameState === 'playing') {
       loadGameData();
     }
-  }, [gameState, difficulty, category]);
-
-  // Helper function to get random options
-  const getRandomOptions = (words, correctWord, count, timestamp) => {
-    const options = [correctWord];
-    const usedIndexes = new Set([words.indexOf(correctWord)]);
-    
-    while (options.length < count && options.length < words.length) {
-      const randomIndex = (timestamp + options.length) % words.length;
-      if (!usedIndexes.has(randomIndex)) {
-        usedIndexes.add(randomIndex);
-        options.push(words[randomIndex]);
-      }
-    }
-    
-    // Shuffle options using timestamp for consistency
-    return options
-      .sort((a, b) => ((a.french.charCodeAt(0) + timestamp) % 100) - ((b.french.charCodeAt(0) + timestamp) % 100));
-  };
-
-  const createWordToImageRound = (words, index, timestamp = Date.now()) => {
-    // Select a random word as the correct answer, but make it deterministic based on index
-    const correctIndex = (index + timestamp) % words.length;
-    const correctWord = words[correctIndex];
-    
-    // Create image options (including the correct one)
-    const imageOptions = getRandomOptions(words, correctWord, 4, timestamp + index);
-    
-    return {
-      id: `round-${index + 1}-${timestamp}`,
-      type: 'word-to-image',
-      question: correctWord.french,
-      questionTranslation: correctWord.english,
-      options: imageOptions,
-      correctOption: correctWord.id
-    };
-  };
-
-  const createImageToWordRound = (words, index, timestamp = Date.now()) => {
-    // Select a random word as the correct answer
-    const correctIndex = (index + timestamp + 1) % words.length;
-    const correctWord = words[correctIndex];
-    
-    // Create word options (including the correct one)
-    const wordOptions = getRandomOptions(words, correctWord, 4, timestamp + index);
-    
-    return {
-      id: `round-${index + 1}-${timestamp}`,
-      type: 'image-to-word',
-      question: correctWord.imageUrl,
-      questionWord: correctWord.french,
-      options: wordOptions.map(w => ({ id: w.id, text: w.french, translation: w.english })),
-      correctOption: correctWord.id
-    };
-  };
-
-  // Error display component
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen p-4">
-        <div className="text-red-500 mb-4">{error}</div>
-        <button 
-          onClick={() => {
-            setError(null);
-            loadGameData();
-          }}
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-        >
-          Retry
-        </button>
-      </div>
-    );
-  }
+  }, [gameState, loadGameData]);
 
   // Handle option selection
   const handleSelectOption = (optionId) => {
@@ -223,9 +488,29 @@ const ImageWordMatchGame = () => {
     return Math.round((score / rounds.length) * 100);
   };
 
-  // Loading state
+  // Loading state with progress
   if (loading && gameState === 'playing') {
-    return <Loading message="Loading game data..." size="12" />;
+    return (
+      <div className="container mx-auto p-4 max-w-4xl text-center">
+        <h1 className="text-3xl font-bold mb-2 text-slate-800">Image Word Match</h1>
+        <p className="text-lg text-slate-600 mb-8">Match French words with their corresponding images</p>
+        
+        <div className="bg-white rounded-lg shadow-lg p-8">
+          <Loading message={`Loading game data... ${loadingProgress}%`} size="12" />
+          
+          <div className="w-full bg-gray-200 rounded-full h-4 mt-4">
+            <div className="h-4 rounded-full bg-blue-500 transition-all duration-300" 
+                 style={{ width: `${loadingProgress}%` }}></div>
+          </div>
+          
+          <p className="text-sm mt-4 text-slate-500">
+            {loadingProgress < 30 ? "Preparing vocabulary..." : 
+             loadingProgress < 70 ? "Generating images..." : 
+             "Creating game rounds..."}
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -233,6 +518,14 @@ const ImageWordMatchGame = () => {
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold mb-2 text-slate-800">Image Word Match</h1>
         <p className="text-lg text-slate-600">Match French words with their corresponding images</p>
+        {gameState === 'playing' && (
+          <div className="text-sm mt-2">
+            {usingAIGenerated ? 
+              <span className="text-green-600">Using AI-generated content</span> : 
+              <span className="text-blue-600">Using placeholder images</span>
+            }
+          </div>
+        )}
       </div>
 
       {gameState === 'intro' && (
@@ -310,8 +603,8 @@ const ImageWordMatchGame = () => {
               <>
                 <div className="text-center mb-6">
                   <h3 className="text-xl font-bold mb-2 text-slate-800">Which image shows: </h3>
-                  <div className="text-2xl font-bold text-blue-700">{rounds[currentRound].question}</div>
-                  <div className="text-sm text-slate-600">({rounds[currentRound].questionTranslation})</div>
+                  <div className="text-2xl font-bold text-blue-700">{rounds[currentRound].word}</div>
+                  <div className="text-sm text-slate-600">({rounds[currentRound].translation})</div>
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
@@ -332,6 +625,10 @@ const ImageWordMatchGame = () => {
                           src={option.imageUrl} 
                           alt={option.french}
                           className="w-full h-40 object-contain rounded"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = generatePlaceholder(option.french, option.english || option.french);
+                          }}
                         />
                         {selectedOption !== null && option.id === rounds[currentRound].correctOption && (
                           <div className="absolute inset-0 flex items-center justify-center bg-green-500 bg-opacity-20 rounded">
@@ -353,9 +650,21 @@ const ImageWordMatchGame = () => {
                   <h3 className="text-xl font-bold mb-2 text-slate-800">Which word matches this image?</h3>
                   <div className="flex justify-center mb-2">
                     <img 
-                      src={rounds[currentRound].question} 
+                      src={rounds[currentRound].image} 
                       alt="Question"
                       className="h-48 rounded-lg object-contain"
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        // Find correct option to get the word
+                        const correctOption = rounds[currentRound].options.find(
+                          opt => opt.id === rounds[currentRound].correctOption
+                        );
+                        if (correctOption) {
+                          e.target.src = generatePlaceholder(correctOption.text, correctOption.translation);
+                        } else {
+                          e.target.src = generatePlaceholder("Image", "Unknown");
+                        }
+                      }}
                     />
                   </div>
                 </div>
@@ -389,7 +698,7 @@ const ImageWordMatchGame = () => {
                 <p className="text-slate-700 mt-1">
                   {isCorrect 
                     ? 'Great job! You selected the correct match.' 
-                    : `The correct answer was: ${rounds[currentRound].options.find(o => o.id === rounds[currentRound].correctOption).text}`}
+                    : `The correct answer was: ${rounds[currentRound].options.find(o => o.id === rounds[currentRound].correctOption)?.text || 'Not available'}`}
                 </p>
               </div>
             )}

@@ -25,6 +25,8 @@ const DailyQuickLearn = () => {
   const [error, setError] = useState(null);
   const [currentWordDetails, setCurrentWordDetails] = useState(null);
   const [isLoadingWordDetails, setIsLoadingWordDetails] = useState(false);
+  const [flipTransitionTime, setFlipTransitionTime] = useState(300); // ms for card flip transition
+  const [flipDelay, setFlipDelay] = useState(1500); // ms to wait before auto-flipping back
 
   useEffect(() => {
     const loadDailyLesson = async () => {
@@ -32,26 +34,96 @@ const DailyQuickLearn = () => {
         setLoading(true);
         setError(null);
         
-        // First try to get from backend
-        const response = await apiService.getDailyLesson(userLevel);
-        if (response && response.vocabulary) {
-          setVocabularySet(response.vocabulary);
-        } else {
-          // If backend fails, use fallback data
-          const fallbackData = await apiService.getFallbackDailyLesson();
-          setVocabularySet(fallbackData.vocabulary);
-        }
+        // Use a date-based approach to ensure new content
+        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
         
-        setLoading(false);
+        // First try to get from backend with date parameter
+        const response = await apiService.getDailyLesson(userLevel, today);
+        
+        if (response && response.length > 0) {
+          console.log("Successfully loaded vocabulary:", response);
+          setVocabularySet(response);
+          // Initialize user answers array
+          initializeUserAnswers(response.length);
+          setLoading(false);
+        } else {
+          throw new Error("No vocabulary data received");
+        }
       } catch (err) {
         console.error('Error loading daily lesson:', err);
-        setError('Failed to load lesson. Please try refreshing the page.');
+        
+        // Generate an emergency vocabulary set based on today's date
+        const todayObj = new Date();
+        const dayOfYear = Math.floor((todayObj - new Date(todayObj.getFullYear(), 0, 0)) / (1000 * 60 * 60 * 24));
+        
+        // Create vocabulary based on day of year to ensure variety
+        const emergencyVocab = generateEmergencyVocabulary(dayOfYear);
+        setVocabularySet(emergencyVocab);
+        initializeUserAnswers(emergencyVocab.length);
+        
+        setError('Using offline vocabulary dataset. Connect to the internet for new words.');
         setLoading(false);
       }
     };
-
+  
     loadDailyLesson();
   }, [userLevel]);
+  
+  // Add this function to your component
+  const generateEmergencyVocabulary = (dayOfYear) => {
+    // Add a large vocabulary bank that rotates based on day of year
+    const allWords = [
+      { id: '1', french: 'Bonjour', english: 'Hello', category: 'greetings', exampleFrench: 'Bonjour, comment allez-vous?', exampleEnglish: 'Hello, how are you?' },
+      { id: '2', french: 'Merci', english: 'Thank you', category: 'expressions', exampleFrench: 'Merci beaucoup pour votre aide.', exampleEnglish: 'Thank you very much for your help.' },
+      { id: '3', french: 'Au revoir', english: 'Goodbye', category: 'greetings', exampleFrench: 'Au revoir, à demain!', exampleEnglish: 'Goodbye, see you tomorrow!' },
+      { id: '4', french: 'S\'il vous plaît', english: 'Please', category: 'expressions', exampleFrench: 'Un café, s\'il vous plaît.', exampleEnglish: 'A coffee, please.' },
+      { id: '5', french: 'Excusez-moi', english: 'Excuse me', category: 'expressions', exampleFrench: 'Excusez-moi, où est la gare?', exampleEnglish: 'Excuse me, where is the train station?' },
+      { id: '6', french: 'Oui', english: 'Yes', category: 'basics', exampleFrench: 'Oui, je comprends.', exampleEnglish: 'Yes, I understand.' },
+      { id: '7', french: 'Non', english: 'No', category: 'basics', exampleFrench: 'Non, je ne sais pas.', exampleEnglish: 'No, I don\'t know.' },
+      { id: '8', french: 'Chat', english: 'Cat', category: 'animals', exampleFrench: 'Le chat dort sur le canapé.', exampleEnglish: 'The cat is sleeping on the sofa.' },
+      { id: '9', french: 'Chien', english: 'Dog', category: 'animals', exampleFrench: 'Le chien joue dans le jardin.', exampleEnglish: 'The dog is playing in the garden.' },
+      { id: '10', french: 'Maison', english: 'House', category: 'places', exampleFrench: 'Ma maison est grande.', exampleEnglish: 'My house is big.' },
+      { id: '11', french: 'Voiture', english: 'Car', category: 'transport', exampleFrench: 'La voiture est rouge.', exampleEnglish: 'The car is red.' },
+      { id: '12', french: 'Pomme', english: 'Apple', category: 'food', exampleFrench: 'J\'aime manger des pommes.', exampleEnglish: 'I like eating apples.' },
+      { id: '13', french: 'Livre', english: 'Book', category: 'objects', exampleFrench: 'Ce livre est intéressant.', exampleEnglish: 'This book is interesting.' },
+      { id: '14', french: 'Table', english: 'Table', category: 'furniture', exampleFrench: 'Le vase est sur la table.', exampleEnglish: 'The vase is on the table.' },
+      { id: '15', french: 'Eau', english: 'Water', category: 'food', exampleFrench: 'Je bois de l\'eau.', exampleEnglish: 'I drink water.' },
+      { id: '16', french: 'Pain', english: 'Bread', category: 'food', exampleFrench: 'J\'achète du pain frais.', exampleEnglish: 'I buy fresh bread.' },
+      { id: '17', french: 'Oiseau', english: 'Bird', category: 'animals', exampleFrench: 'L\'oiseau chante dans l\'arbre.', exampleEnglish: 'The bird sings in the tree.' },
+      { id: '18', french: 'Fleur', english: 'Flower', category: 'nature', exampleFrench: 'La fleur est belle.', exampleEnglish: 'The flower is beautiful.' },
+      { id: '19', french: 'Soleil', english: 'Sun', category: 'nature', exampleFrench: 'Le soleil brille aujourd\'hui.', exampleEnglish: 'The sun is shining today.' },
+      { id: '20', french: 'Lune', english: 'Moon', category: 'nature', exampleFrench: 'La lune est pleine ce soir.', exampleEnglish: 'The moon is full tonight.' },
+      { id: '21', french: 'Téléphone', english: 'Phone', category: 'technology', exampleFrench: 'Mon téléphone est nouveau.', exampleEnglish: 'My phone is new.' },
+      { id: '22', french: 'École', english: 'School', category: 'places', exampleFrench: 'L\'école est fermée aujourd\'hui.', exampleEnglish: 'The school is closed today.' },
+      { id: '23', french: 'Hôpital', english: 'Hospital', category: 'places', exampleFrench: 'L\'hôpital est près d\'ici.', exampleEnglish: 'The hospital is near here.' },
+      { id: '24', french: 'Jardin', english: 'Garden', category: 'places', exampleFrench: 'Les fleurs dans le jardin sont belles.', exampleEnglish: 'The flowers in the garden are beautiful.' },
+      { id: '25', french: 'Restaurant', english: 'Restaurant', category: 'places', exampleFrench: 'Le restaurant est excellent.', exampleEnglish: 'The restaurant is excellent.' },
+      { id: '26', french: 'Famille', english: 'Family', category: 'people', exampleFrench: 'Ma famille est grande.', exampleEnglish: 'My family is big.' },
+      { id: '27', french: 'Ami', english: 'Friend', category: 'people', exampleFrench: 'C\'est mon meilleur ami.', exampleEnglish: 'This is my best friend.' },
+      { id: '28', french: 'Travail', english: 'Work', category: 'activities', exampleFrench: 'J\'aime mon travail.', exampleEnglish: 'I like my work.' },
+      { id: '29', french: 'Musique', english: 'Music', category: 'arts', exampleFrench: 'J\'écoute de la musique.', exampleEnglish: 'I listen to music.' },
+      { id: '30', french: 'Film', english: 'Movie', category: 'entertainment', exampleFrench: 'Le film était intéressant.', exampleEnglish: 'The movie was interesting.' }
+    ];
+  
+    // Select 7 words based on the day of the year
+    const selectedWords = [];
+    for (let i = 0; i < 7; i++) {
+      const index = (dayOfYear + i) % allWords.length;
+      selectedWords.push({
+        ...allWords[index],
+        id: `daily-${i+1}-${Date.now()}`
+      });
+    }
+    
+    return selectedWords;
+  };
+  
+  // Load word details for the current flashcard when needed
+  useEffect(() => {
+    if (currentStep === 'flashcards' && isFlipped && !currentWordDetails && vocabularySet.length > 0) {
+      getWordDetails(vocabularySet[flashcardIndex]);
+    }
+  }, [currentStep, flashcardIndex, isFlipped, currentWordDetails, vocabularySet]);
 
   useEffect(() => {
     // Load user progress from localStorage
@@ -66,46 +138,22 @@ const DailyQuickLearn = () => {
           // Check if the user has completed today's lesson
           const today = new Date().toDateString();
           if (progress.lastCompletionDate === today) {
-            // If already completed today, show a message
-            setVocabularySet(progress.lastVocabularySet || []);
+            // If already completed today, show completed state
+            if (progress.lastVocabularySet && progress.lastVocabularySet.length > 0) {
+              setVocabularySet(progress.lastVocabularySet);
+            }
             setCurrentStep('completed');
-          } else {
-            // Otherwise, load new vocabulary
-            // loadVocabularySet();
+            setLoading(false);
           }
-        } else {
-          // loadVocabularySet();
         }
       } catch (error) {
         console.error('Error loading progress:', error);
         setError('Unable to load your progress. Local storage may be restricted.');
-        // loadVocabularySet();
       }
     };
     
     loadProgress();
   }, []);
-
-  const loadVocabularySet = async () => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      // Get daily lesson vocabulary using improved API service
-      const vocabulary = await apiService.getDailyLesson();
-      
-      console.log('Loaded vocabulary:', vocabulary);
-      setVocabularySet(vocabulary);
-      
-      // Initialize user answers array
-      initializeUserAnswers(vocabulary.length);
-    } catch (error) {
-      console.error('Error fetching vocabulary:', error);
-      setError('Unable to load today\'s vocabulary. Using fallback words instead.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const initializeUserAnswers = (length) => {
     setUserAnswers(new Array(length).fill(null));
@@ -114,13 +162,28 @@ const DailyQuickLearn = () => {
   const handleStartLesson = () => {
     if (playSound) playSound('click');
     setCurrentStep('flashcards');
+    // Pre-load the first word details
+    if (vocabularySet.length > 0) {
+      getWordDetails(vocabularySet[0]);
+    }
   };
 
   const handleFlipCard = () => {
+    // Toggle card flip state
     setIsFlipped(!isFlipped);
+    
+    // If flipping to show the front, clear word details
+    if (isFlipped) {
+      setCurrentWordDetails(null);
+    } else {
+      // If flipping to show the back, get word details
+      getWordDetails(vocabularySet[flashcardIndex]);
+    }
   };
 
   const getWordDetails = async (word) => {
+    if (!word) return;
+    
     try {
       setIsLoadingWordDetails(true);
       const response = await apiService.getWordDetails(
@@ -144,7 +207,22 @@ const DailyQuickLearn = () => {
   };
 
   const handleNextFlashcard = () => {
-    setIsFlipped(false); // Reset flip state
+    // First flip back to front if needed
+    if (isFlipped) {
+      setIsFlipped(false);
+      // Wait for flip transition to complete before changing card
+      setTimeout(() => {
+        proceedToNextCard();
+      }, flipTransitionTime + 50);
+    } else {
+      proceedToNextCard();
+    }
+  };
+  
+  const proceedToNextCard = () => {
+    // Clear current word details
+    setCurrentWordDetails(null);
+    
     if (flashcardIndex < vocabularySet.length - 1) {
       setFlashcardIndex(flashcardIndex + 1);
     } else {
@@ -157,9 +235,21 @@ const DailyQuickLearn = () => {
   };
 
   const handlePrevFlashcard = () => {
-    setIsFlipped(false); // Reset flip state
-    if (flashcardIndex > 0) {
-      setFlashcardIndex(flashcardIndex - 1);
+    // First flip back to front if needed
+    if (isFlipped) {
+      setIsFlipped(false);
+      // Wait for flip transition to complete before changing card
+      setTimeout(() => {
+        if (flashcardIndex > 0) {
+          setFlashcardIndex(flashcardIndex - 1);
+          setCurrentWordDetails(null);
+        }
+      }, flipTransitionTime + 50);
+    } else {
+      if (flashcardIndex > 0) {
+        setFlashcardIndex(flashcardIndex - 1);
+        setCurrentWordDetails(null);
+      }
     }
   };
 
@@ -303,14 +393,18 @@ const DailyQuickLearn = () => {
     return (
       <div className="flex flex-col items-center">
         <div 
-          className="flashcard-container h-64 relative my-6 cursor-pointer" 
+          className="flashcard-container h-64 w-full max-w-md relative my-6 cursor-pointer" 
           onClick={handleFlipCard}
         >
-          <div className={`h-full rounded-xl shadow-lg transition-transform duration-700 transform ${isFlipped ? 'rotate-y-180' : ''}`} 
-               style={{ transformStyle: 'preserve-3d' }}>
+          <div 
+            className={`h-full w-full rounded-xl shadow-lg transition-transform duration-700 transform ${isFlipped ? 'rotate-y-180' : ''}`} 
+            style={{ transformStyle: 'preserve-3d', transitionDuration: `${flipTransitionTime}ms` }}
+          >
             {/* Front side - French word */}
-            <div className="absolute w-full h-full rounded-xl flex flex-col items-center justify-center p-6 bg-red-100 border-2 border-red-300" 
-                 style={{ backfaceVisibility: 'hidden' }}>
+            <div 
+              className="absolute w-full h-full rounded-xl flex flex-col items-center justify-center p-6 bg-red-100 border-2 border-red-300" 
+              style={{ backfaceVisibility: 'hidden' }}
+            >
               <span className="text-3xl font-bold text-slate-800 mb-2">{currentWord.french}</span>
               {currentWord.category && (
                 <span className="text-sm px-2 py-1 bg-red-200 rounded-full text-red-800">{currentWord.category}</span>
@@ -318,8 +412,10 @@ const DailyQuickLearn = () => {
             </div>
             
             {/* Back side - English translation & AI-generated content */}
-            <div className="absolute w-full h-full rounded-xl flex flex-col items-center justify-center p-6 bg-green-100 border-2 border-green-300 overflow-y-auto"
-                 style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}>
+            <div 
+              className="absolute w-full h-full rounded-xl flex flex-col items-center justify-center p-6 bg-green-100 border-2 border-green-300 overflow-y-auto"
+              style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
+            >
               <span className="text-xl font-bold text-slate-800 mb-2">{currentWord.english}</span>
               
               {isLoadingWordDetails ? (
@@ -337,6 +433,12 @@ const DailyQuickLearn = () => {
                     <p className="italic text-slate-600">{currentWordDetails.exampleFrench}</p>
                     <p className="text-xs text-slate-500">{currentWordDetails.exampleEnglish}</p>
                   </div>
+                  {currentWordDetails.tips && (
+                    <div className="text-sm">
+                      <p className="font-semibold text-slate-700">Tip:</p>
+                      <p className="italic text-slate-600">{currentWordDetails.tips}</p>
+                    </div>
+                  )}
                 </div>
               ) : null}
             </div>
