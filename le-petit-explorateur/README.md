@@ -1,55 +1,42 @@
 # Le Petit Explorateur: AI-Powered French Learning Adventure
 
+<div align="center">
+  <img src="logo512.png" alt="Le Petit Explorateur Logo" width="150"/>
+  <h3>Learn French Through Interactive AI-Powered Games</h3>
+</div>
+
+## 🌟 Overview
 
 **Le Petit Explorateur (The Little Explorer)** is an interactive web application designed to make learning French fun and accessible for complete beginners through playful, bite-sized learning experiences powered by advanced AI technologies.
 
-Built as part of the GenAI Bootcamp 2025, this application showcases the integration of multiple AI technologies to create an engaging language learning experience.
+Built as part of the GenAI Bootcamp 2025, this application showcases the integration of multiple AI technologies to create an engaging language learning experience that adapts to your learning style and pace.
 
-![alt text](logo512.png)
+## 🎮 Featured Games
 
-## 🌟 Features
-
-- **Word Lineup**: Match French words to images with visual and audio support
 - **Phrase Constructor**: Build simple sentences with drag-and-drop words
-- **Listening Challenge**: Practice comprehension with audio clips
-- **Object Naming Game**: Learn vocabulary in context with interactive scenes
-- **Daily Quick Learn**: Short, timed vocabulary lessons
-- **Pronunciation Practice**: Record and compare your pronunciation
-- **Cultural Context Mini-Lessons**: Learn about French culture while building vocabulary
+- **French Hangman**: Guess French words letter by letter
+- **Quiz Challenge**: Test your knowledge with a time-based quiz game
+- **Daily Quick Learn**: Short, timed vocabulary lessons that track your learning streak
+- **AI Language Buddy**: Practice conversation with an AI tutor adapted to your level
 
-### Advanced AI Features
+## 🧠 AI-Powered Features
 
-- **AI Language Buddy**: Conversational practice with an AI partner adapted to your level
-- **Cultural Context Generator**: Immersive cultural scenarios that teach vocabulary in context
+- **Adaptive Learning**: Content and difficulty automatically adjust to your skill level using OpenAI GPT models
+- **Personalized Content Generation**: AI creates unique questions, phrases, and examples for each game session
+- **Interactive Conversations**: Practice speaking French with an AI language partner powered by GPT
+- **Visual Learning**: AI-generated images for vocabulary words using DALL-E integration
+- **Smart Fallbacks**: Intelligently degrades to offline content when API services are unavailable
+- **Cultural Context**: Learn about French culture while building vocabulary
 
-## 🧠 AI Technology Stack
-
-### AI Platforms
-- **OpenAI GPT-4 Turbo**: Content generation, adaptive lesson planning
-- **Hugging Face Transformers**: Speech recognition, pronunciation analysis
-- **Google Imagen**: Visual content generation
-- **ChromaDB**: Vector storage and retrieval
-- **Anthropic Claude**: Advanced reasoning, personalized learning
-- **Cohere**: Semantic search and embedding
-
-### Application Architecture
-- **Frontend**: React.js with Tailwind CSS
-- **Backend**: Node.js/Express
-- **API Integration Layer**: Unified interface for all AI services
-- **Progressive Web App (PWA)**: Offline functionality
-- **Local Storage**: No login required, progress tracked locally
+> The application is primarily powered by OpenAI's GPT and DALL-E models, with the architecture ready to integrate other AI services in future updates.
 
 ## 🚀 Installation
 
 ### Prerequisites
 - Node.js (v16+)
 - npm or yarn
-- API keys for the AI services:
-  - OpenAI API key
-  - Anthropic API key
-  - Google API key
-  - Hugging Face API key
-  - Cohere API key
+- OpenAI API key (required for most AI functionality)
+- Other API keys (optional, enhances functionality)
 
 ### Backend Setup
 
@@ -67,13 +54,15 @@ npm install
 3. Create a `.env` file in the backend directory:
 ```
 PORT=5000
-OPENAI_API_KEY=your_openai_api_key
-ANTHROPIC_API_KEY=your_anthropic_api_key
-GOOGLE_API_KEY=your_google_api_key
-HUGGINGFACE_API_KEY=your_huggingface_api_key
-COHERE_API_KEY=your_cohere_api_key
-CHROMADB_URL=http://localhost:8000
+OPENAI_API_KEY=your_openai_api_key   # Required for most AI features
+ANTHROPIC_API_KEY=your_anthropic_api_key   # Optional: Enhanced language buddy
+GOOGLE_API_KEY=your_google_api_key   # Optional: Image generation via Google Imagen
+HUGGINGFACE_API_KEY=your_huggingface_api_key   # Optional: Pronunciation analysis
+COHERE_API_KEY=your_cohere_api_key   # Optional: Semantic search capabilities
+CHROMADB_URL=http://localhost:8000   # Optional: Vector database
 ```
+
+> **Note:** The application includes fallback mechanisms if API keys are missing, but the OpenAI key is strongly recommended for the best experience.
 
 4. Start the backend server:
 ```bash
@@ -82,7 +71,7 @@ npm run dev
 
 ### Frontend Setup
 
-1. In a new terminal, navigate to the frontend directory:
+1. Navigate to the frontend directory:
 ```bash
 cd ../frontend
 ```
@@ -115,57 +104,30 @@ docker-compose up -d
 
 This will start both the frontend and backend services, as well as a ChromaDB instance.
 
-## 📂 Project Structure
+## 📱 Offline Support
 
-The project follows a modular architecture with clear separation of concerns:
+Le Petit Explorateur functions as a Progressive Web App (PWA) with:
 
-- `frontend/`: React application with game components and UI
-- `backend/`: Express server handling API integrations and business logic
-- `docker/`: Configuration for containerization
+- Offline vocabulary and lesson access
+- Local progress tracking
+- No login required (all progress saved locally)
+- Fallback content for when API services are unavailable
 
-## 🧩 AI Integration Details
+## 🛠️ Technology Stack
 
-### OpenAI GPT-4 Turbo
-- Powers the "Phrase Constructor" with real-time grammar feedback
-- Generates adaptive vocabulary sets based on user progress
-- Creates contextual examples for vocabulary items
-- Works with the Cultural Context Generator to create culturally relevant scenarios
+- **Frontend**: React.js with Tailwind CSS
+- **Backend**: Node.js/Express
+- **Primary AI Integration**: OpenAI GPT and DALL-E models
+- **Secondary AI Frameworks**: Implementation-ready for Claude, Google Imagen, Hugging Face, and Cohere
+- **Vector Database**: ChromaDB framework (optional enhancement)
+- **Local Storage**: IndexedDB and browser storage for offline functionality
+- **Error Handling**: Multi-level fallback system with predefined content
 
-### Hugging Face Transformers
-- Speech-to-text for pronunciation practice
-- Text-to-speech for vocabulary pronunciation
-- Provides models for French language understanding
-- Speech pattern analysis for feedback on accent and pronunciation
 
-### Google Imagen
-- Creates custom illustrations for vocabulary items
-- Generates scene-based learning environments for the "Object Naming Game"
-- Produces visual elements for cultural mini-lessons
-- Develops visual cues for language learning
+## 📚 Additional Resources
 
-### Anthropic Claude
-- Powers the AI Language Buddy for conversational practice
-- Generates personalized learning paths based on user performance
-- Provides nuanced contextual understanding of French expressions
-- Creates adaptive difficulty levels across all games
+For more detailed information on the AI technologies used, see [TechSpecs.md](TechSpecs.md).
 
-### ChromaDB
-- Stores vector embeddings of vocabulary and phrases
-- Enables semantic search across learning content
-- Tracks user progress and performance metrics
-- Manages relationships between related vocabulary items
+## Video Demo 
 
-### Cohere
-- Creates embeddings for vocabulary and phrases
-- Powers recommendation system for related vocabulary
-- Enables similarity search for vocabulary items
-- Supports contextual understanding of user inputs
-
-## 📚 Resources
-
-- [OpenAI API Documentation](https://platform.openai.com/docs/)
-- [Anthropic API Documentation](https://docs.anthropic.com/)
-- [Hugging Face Transformers Documentation](https://huggingface.co/docs/transformers/index)
-- [Google Imagen API Documentation](https://cloud.google.com/vision/image-generation)
-- [Cohere API Documentation](https://docs.cohere.com/)
-- [ChromaDB Documentation](https://docs.trychroma.com/)
+You can view the demo here -- 
