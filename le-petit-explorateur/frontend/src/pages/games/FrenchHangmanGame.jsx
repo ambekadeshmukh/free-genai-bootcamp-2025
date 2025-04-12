@@ -290,6 +290,8 @@ const FrenchHangmanGame = () => {
 
   // Get displayed word with guessed letters revealed
   const getDisplayedWord = () => {
+    if (!currentWord) return '';
+    
     return [...currentWord].map(letter => {
       if (guessedLetters.includes(letter) || letter === '-' || letter === ' ') {
         return letter;
@@ -512,6 +514,9 @@ const FrenchHangmanGame = () => {
                 <div className="word-container my-8 text-center">
                   <p className="text-2xl font-mono tracking-wider font-bold text-slate-800">
                     {getDisplayedWord()}
+                  </p>
+                  <p className="text-sm text-gray-500 mt-2">
+                    {currentWord ? `Guess this ${currentWord.length}-letter French word!` : ''}
                   </p>
                   
                   {/* Show translation if game over */}
