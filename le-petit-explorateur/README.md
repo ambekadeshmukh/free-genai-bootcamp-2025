@@ -130,4 +130,4 @@ For more detailed information on the AI technologies used, see [TechSpecs.md](Te
 
 ## Video Demo 
 
-You can view the demo here -- 
+You can view the demo here -- https://youtu.be/dQ8J6z46-mc 
